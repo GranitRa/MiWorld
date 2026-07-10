@@ -36,6 +36,22 @@ harmless by design (chronicle has its own serial PK; stream id is never written 
 |----|-------|--------|
 | WP-5 | Resource & life-support economy | ✅ done |
 | WP-6 | Construction & city growth (+ RWP-4 building render) | ✅ done |
+| WP-7 | Colonists — movement, pairing, births, aging (+ RWP-5 astronauts) | ✅ done |
+
+WP-7: `populationSystem` (after construction in tick order) — colonists age, walk between
+modules (a walk leg pos→dest over depart/arrive sim-times, client-interpolated), pair up by
+trait compatibility, have Mars-born children and (rarely, at great age) die. Births are gated
+by housing capacity, so population growth **couples to the settlement**: more people → the
+(Fable-hardened) planner builds more habitats → room for more people. Colonist state extended
+(pos/dest/departSec/arriveSec/partner); movement/birth/death stream as `c:`-prefixed deltas.
+Verified: population unit test (pairing, walking, Mars-born growth) + the soak now runs the
+FULL loop (4 seeds × 250 sols) asserting population grows but stays bounded, and the colony
+stays supplied — the integrated growth loop is stable.
+RWP-5 (client): `render/colonists.ts` `ColonistLayer` renders each colonist as a CC0
+Quaternius **astronaut (spacesuit) 3D model** (3 variants), interpolating its position from
+the server walk leg each frame with a walk-bob and facing; the client advances world time
+smoothly between ticks so motion is fluid. Astronauts ~2.8 m (readable at diorama zoom; a
+bubble-LOD + auto-director close-ups land in WP-12). Verified rendering + walking in-browser.
 
 WP-6: `shared/buildings.ts` (build cost/time, housing, plannable kinds). `constructionSystem`
 advances in-progress builds and, when there's slack (< soft cap of 10+pop, feedstock

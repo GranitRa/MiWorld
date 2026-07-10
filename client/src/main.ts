@@ -5,12 +5,20 @@ import {
   SRGBColorSpace,
   WebGLRenderer,
 } from "three";
-import { MARS_SOL_SECONDS, generatePlanet, type Building, type Planet } from "@miworld/shared";
+import {
+  MARS_SOL_SECONDS,
+  WORLD_SECONDS_PER_REAL_SECOND,
+  generatePlanet,
+  type Building,
+  type Colonist,
+  type Planet,
+} from "@miworld/shared";
 import { Connection, defaultWsUrl } from "./net/connection";
 import { PlaybackBuffer } from "./net/playback";
 import { ProceduralSpriteSource } from "./pixelart/source";
 import { buildTerrain } from "./render/terrain";
 import { BuildingLayer } from "./render/buildings";
+import { ColonistLayer } from "./render/colonists";
 import { Sky } from "./render/sky";
 import { PostFX } from "./render/post";
 import { CameraRig } from "./camera/rig";
@@ -44,6 +52,8 @@ const post = new PostFX(renderer, scene, camera);
 let worldTimeSec = 0;
 let planet: Planet | null = null;
 let buildings: BuildingLayer | null = null;
+let colonists: ColonistLayer | null = null;
+let lastFrameMs = performance.now();
 const playback = new PlaybackBuffer();
 
 function resize() {
@@ -56,7 +66,7 @@ window.addEventListener("resize", resize);
 resize();
 
 // --- Build the world once, from the seed --------------------------------
-function buildWorld(seed: number, initialBuildings: Building[]) {
+function buildWorld(seed: number, initialBuildings: Building[], initialColonists: Colonist[]) {
   setStatus("forging the planet…");
   // Defer via setTimeout (not rAF) so worldgen still runs when the tab is hidden — rAF is
   // paused for background tabs, which would otherwise stall the whole build.
@@ -69,8 +79,11 @@ function buildWorld(seed: number, initialBuildings: Building[]) {
       buildings = new BuildingLayer(p);
       scene.add(buildings.group);
       buildings.syncAll(initialBuildings);
+      colonists = new ColonistLayer(p);
+      scene.add(colonists.group);
+      colonists.syncAll(initialColonists);
       rig.setHeightSampler((x, z) => p.height(x, z));
-      rig.focus(p.landingSite.x, p.landingSite.z, 220);
+      rig.focus(p.landingSite.x, p.landingSite.z, 60);
       setStatus("● live");
     } catch (err) {
       console.error("buildWorld failed:", err);
@@ -83,15 +96,14 @@ function buildWorld(seed: number, initialBuildings: Building[]) {
 const conn = new Connection(defaultWsUrl(), {
   onHello: (m) => {
     worldTimeSec = m.worldTimeSec;
-    if (!planet) buildWorld(m.snapshot.seed, m.snapshot.buildings);
+    if (!planet) buildWorld(m.snapshot.seed, m.snapshot.buildings, m.snapshot.colonists);
   },
   onTick: (m) => {
     playback.ingest(m);
-    worldTimeSec = m.worldTimeSec;
-    if (buildings) {
-      for (const d of m.deltas) {
-        if (d.id.startsWith("b:")) buildings.applyDelta(d.id.slice(2), d.changes);
-      }
+    worldTimeSec = m.worldTimeSec; // snap to authoritative time (frame loop advances between ticks)
+    for (const d of m.deltas) {
+      if (d.id.startsWith("b:")) buildings?.applyDelta(d.id.slice(2), d.changes);
+      else if (d.id.startsWith("c:")) colonists?.applyDelta(d.id.slice(2), d.changes);
     }
   },
   onStatus: (connected) => setStatus(connected ? (planet ? "● live" : "connecting…") : "reconnecting…"),
@@ -100,8 +112,16 @@ conn.connect();
 
 // --- Render loop ---------------------------------------------------------
 function frame() {
+  // Advance world time smoothly between server ticks (snapped to authoritative time on each
+  // tick) so colonists walk and the sun moves fluidly instead of stepping every ~8.5 s.
+  const nowMs = performance.now();
+  const dtMs = Math.min(250, nowMs - lastFrameMs);
+  lastFrameMs = nowMs;
+  worldTimeSec += (dtMs / 1000) * WORLD_SECONDS_PER_REAL_SECOND;
+
   rig.update();
   post.setFocusDistance(camera.position.distanceTo(rig.target));
+  colonists?.update(worldTimeSec);
 
   const solFraction = ((worldTimeSec % MARS_SOL_SECONDS) + MARS_SOL_SECONDS) % MARS_SOL_SECONDS / MARS_SOL_SECONDS;
   sky.update(solFraction);

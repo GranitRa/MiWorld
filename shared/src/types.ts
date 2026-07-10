@@ -45,6 +45,13 @@ export interface Colonist {
   /** ids of related colonists → relationship valence (-1..1). */
   bonds: Record<string, number>;
   alive: boolean;
+  /** Current leg of movement: start pos, destination, and sim-times; client interpolates. */
+  pos: Vec2;
+  dest: Vec2 | null;
+  departSec: number;
+  arriveSec: number;
+  /** Partner colonist id (pairing), or null. */
+  partner: string | null;
 }
 
 export type ChronicleCategory =

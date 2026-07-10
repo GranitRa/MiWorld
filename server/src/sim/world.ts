@@ -76,7 +76,11 @@ export function seedColony(world: World, landingSite: { x: number; z: number }, 
 
   world.colonists = [];
   for (let i = 0; i < FOUNDING_CREW; i++) {
-    world.colonists.push(makeColonist(rng, `c${i}`, i));
+    const pos = {
+      x: landingSite.x + rng.range("layout", -30, 30),
+      z: landingSite.z + rng.range("layout", -30, 30),
+    };
+    world.colonists.push(makeColonist(rng, `c${i}`, i, pos));
   }
 }
 

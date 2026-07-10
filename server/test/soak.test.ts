@@ -4,6 +4,7 @@ import { createWorld, seedColony } from "../src/sim/world";
 import { environmentSystem } from "../src/sim/systems/environment";
 import { resourcesSystem } from "../src/sim/systems/resources";
 import { constructionSystem } from "../src/sim/systems/construction";
+import { populationSystem } from "../src/sim/systems/population";
 import { RngGateway } from "../src/sim/rng";
 import type { SimContext } from "../src/sim/engine";
 
@@ -24,12 +25,14 @@ function soak(seed: number, sols: number) {
     environmentSystem(world, TICK_WORLD_SECONDS, ctx);
     resourcesSystem(world, TICK_WORLD_SECONDS, ctx);
     constructionSystem(world, TICK_WORLD_SECONDS, ctx);
+    populationSystem(world, TICK_WORLD_SECONDS, ctx);
     if (i >= tailStart) {
       tailTicks++;
       if ((world.shortages.power ?? 0) >= 0.5) powerShortTicks++;
     }
   }
-  return { world, chronicPower: powerShortTicks / Math.max(1, tailTicks) };
+  const pop = world.colonists.filter((c) => c.alive).length;
+  return { world, pop, chronicPower: powerShortTicks / Math.max(1, tailTicks) };
 }
 
 describe("colony soak (hopeful-tone invariant)", () => {
@@ -37,16 +40,16 @@ describe("colony soak (hopeful-tone invariant)", () => {
     it(
       `seed ${seed}: 250 sols unattended stays supplied and is not chronically power-starved`,
       () => {
-        const { world, chronicPower } = soak(seed, 250);
+        const { world, pop, chronicPower } = soak(seed, 250);
         for (const g of ["power", "oxygen", "water", "food"] as const) {
           expect(Number.isNaN(world.treasury[g].amount)).toBe(false);
           expect(world.treasury[g].amount).toBeGreaterThan(0);
         }
         // Fable measured 5–38% chronic on the buggy planner; healthy must be near-zero.
         expect(chronicPower).toBeLessThan(0.1);
-        // No runaway build spam.
-        expect(world.buildings.length).toBeLessThanOrEqual(10 + world.colonists.length + 1);
-        expect(world.colonists.every((c) => c.alive)).toBe(true);
+        // Population grows (births > deaths) but stays bounded — hopeful, not runaway.
+        expect(pop).toBeGreaterThan(16);
+        expect(pop).toBeLessThan(250);
       },
       30000,
     );

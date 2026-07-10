@@ -17,6 +17,7 @@ function bld(id: string, kind: Building["kind"], tier: Building["tier"]): Buildi
 function crew(n: number): Colonist[] {
   return Array.from({ length: n }, (_, i) => ({
     id: `c${i}`, name: "x", role: "r", sex: "m" as const, ageDays: 0, traits: [], bonds: {}, alive: true,
+    pos: { x: 0, z: 0 }, dest: null, departSec: 0, arriveSec: 0, partner: null,
   }));
 }
 

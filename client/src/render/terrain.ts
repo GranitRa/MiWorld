@@ -10,7 +10,7 @@ import {
 } from "three";
 import { fbm, type Planet } from "@miworld/shared";
 import { surfaceColor } from "./palette";
-import { ProceduralSpriteSource } from "../pixelart/source";
+import type { SpriteSource } from "../pixelart/source";
 
 const SEGMENTS = 200; // faceted low-poly forms; detail LOD arrives in WP-12
 
@@ -19,7 +19,7 @@ const SEGMENTS = 200; // faceted low-poly forms; detail LOD arrives in WP-12
  * `planet.height`, so this exactly matches any server-side sampling. Vertex colours encode
  * elevation + slope; ice deposits get a faint pale disc so the surface reads as "resourced".
  */
-export function buildTerrain(planet: Planet): Group {
+export function buildTerrain(planet: Planet, source: SpriteSource): Group {
   const group = new Group();
 
   const geo = new PlaneGeometry(planet.size, planet.size, SEGMENTS, SEGMENTS);
@@ -55,7 +55,6 @@ export function buildTerrain(planet: Planet): Group {
   // Micro pixel-art regolith grain (RWP-3): two seeded tiles sampled in world space at
   // different scales and multiplied onto the vertex colour, so crisp texels stay glued to
   // the ground while orbiting (no screen-space pixel crawl).
-  const source = new ProceduralSpriteSource(planet.seed);
   const tile0 = source.terrainTile(0);
   const tile1 = source.terrainTile(1);
   mat.onBeforeCompile = (shader) => {

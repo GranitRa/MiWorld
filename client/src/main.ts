@@ -1,19 +1,16 @@
 import {
-  ConeGeometry,
-  CylinderGeometry,
-  Group,
-  Mesh,
-  MeshStandardMaterial,
   PCFSoftShadowMap,
   PerspectiveCamera,
   Scene,
   SRGBColorSpace,
   WebGLRenderer,
 } from "three";
-import { MARS_SOL_SECONDS, generatePlanet, type Planet } from "@miworld/shared";
+import { MARS_SOL_SECONDS, generatePlanet, type Building, type Planet } from "@miworld/shared";
 import { Connection, defaultWsUrl } from "./net/connection";
 import { PlaybackBuffer } from "./net/playback";
+import { ProceduralSpriteSource } from "./pixelart/source";
 import { buildTerrain } from "./render/terrain";
+import { BuildingLayer } from "./render/buildings";
 import { Sky } from "./render/sky";
 import { PostFX } from "./render/post";
 import { CameraRig } from "./camera/rig";
@@ -46,6 +43,7 @@ const post = new PostFX(renderer, scene, camera);
 
 let worldTimeSec = 0;
 let planet: Planet | null = null;
+let buildings: BuildingLayer | null = null;
 const playback = new PlaybackBuffer();
 
 function resize() {
@@ -58,47 +56,37 @@ window.addEventListener("resize", resize);
 resize();
 
 // --- Build the world once, from the seed --------------------------------
-function buildWorld(seed: number) {
+function buildWorld(seed: number, initialBuildings: Building[]) {
   setStatus("forging the planet…");
   // Defer a frame so the status paints before the (brief) synchronous worldgen.
   requestAnimationFrame(() => {
-    planet = generatePlanet(seed);
-    scene.add(buildTerrain(planet));
-    scene.add(makeLander(planet));
-    rig.setHeightSampler((x, z) => planet!.height(x, z));
-    rig.focus(planet.landingSite.x, planet.landingSite.z, 1200);
+    const p = generatePlanet(seed);
+    planet = p;
+    const source = new ProceduralSpriteSource(seed);
+    scene.add(buildTerrain(p, source));
+    buildings = new BuildingLayer(p, source);
+    scene.add(buildings.group);
+    buildings.syncAll(initialBuildings);
+    rig.setHeightSampler((x, z) => p.height(x, z));
+    rig.focus(p.landingSite.x, p.landingSite.z, 700);
     setStatus("● live");
   });
-}
-
-function makeLander(p: Planet): Group {
-  const g = new Group();
-  const y = p.height(p.landingSite.x, p.landingSite.z);
-  const pad = new Mesh(
-    new CylinderGeometry(16, 18, 1.5, 20),
-    new MeshStandardMaterial({ color: "#3a3a42", roughness: 0.8, metalness: 0.3 }),
-  );
-  pad.position.set(p.landingSite.x, y + 0.75, p.landingSite.z);
-  pad.receiveShadow = true;
-  const body = new Mesh(
-    new ConeGeometry(6, 12, 8),
-    new MeshStandardMaterial({ color: "#c7cdd6", roughness: 0.4, metalness: 0.7, emissive: "#221a10" }),
-  );
-  body.position.set(p.landingSite.x, y + 8, p.landingSite.z);
-  body.castShadow = true;
-  g.add(pad, body);
-  return g;
 }
 
 // --- Network stream drives world time -----------------------------------
 const conn = new Connection(defaultWsUrl(), {
   onHello: (m) => {
     worldTimeSec = m.worldTimeSec;
-    if (!planet) buildWorld(m.snapshot.seed);
+    if (!planet) buildWorld(m.snapshot.seed, m.snapshot.buildings);
   },
   onTick: (m) => {
     playback.ingest(m);
     worldTimeSec = m.worldTimeSec;
+    if (buildings) {
+      for (const d of m.deltas) {
+        if (d.id.startsWith("b:")) buildings.applyDelta(d.id.slice(2), d.changes);
+      }
+    }
   },
   onStatus: (connected) => setStatus(connected ? (planet ? "● live" : "connecting…") : "reconnecting…"),
 });

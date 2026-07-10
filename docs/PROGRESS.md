@@ -35,6 +35,20 @@ harmless by design (chronicle has its own serial PK; stream id is never written 
 | WP | Title | Status |
 |----|-------|--------|
 | WP-5 | Resource & life-support economy | ✅ done |
+| WP-6 | Construction & city growth (+ RWP-4 building render) | ✅ done |
+
+WP-6: `shared/buildings.ts` (build cost/time, housing, plannable kinds). `constructionSystem`
+advances in-progress builds and, when there's slack (< soft cap of 10+pop, feedstock
+available, < 2 concurrent), plans the next module by need (shortage-boosted scoring), sites
+it via a golden-angle spiral (low slope, spaced ≥14 m, water/O₂ plants near ice), spends
+feedstock, and streams it as an id-prefixed `b:` delta (new full record, then progress
+patches). Workshop now produces feedstock. Verified: unit test (builds + finishes, spaced,
+capped) + live 15-sol catch-up grew the colony 12→23 buildings.
+RWP-4 (client): `render/buildings.ts` `BuildingLayer` renders each kind as a procedural
+low-poly kit mesh with a pixel-art texture (`SpriteSource.building`), positioned on terrain,
+scaling up out of the ground by `progress` (glowing while under construction); upserts from
+the hello snapshot + `b:` deltas. Verified in-browser: a recognizable HD-2D Mars base
+(solar arrays, domed habitats, greenhouses, tanks, landing pad, monument).
 
 WP-5: server generates the planet at founding and seeds a starter colony at the landing
 site (crew of 16 + a viable module cluster). `shared/src/goods.ts` catalogs per-building

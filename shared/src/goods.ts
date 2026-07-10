@@ -50,6 +50,7 @@ export const BUILDING_ECONOMY: Record<BuildingKind, BuildingEconomy> = {
   },
   workshop: {
     produces: [
+      { good: "feedstock", perSol: 8 }, // regolith → printable building material
       { good: "spares", perSol: 4 },
       { good: "science", perSol: 3 },
     ],

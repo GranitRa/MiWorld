@@ -60,16 +60,17 @@ export function seedColony(world: World, landingSite: { x: number; z: number }, 
 
   // A viable starting base: power + oxygen + water + food for the crew, with margin.
   place("landing_pad", "printed", 0, 0);
-  place("habitat", "inflatable", 20, 6);
-  place("habitat", "inflatable", 20, -12);
-  place("solar_field", "printed", -24, 12);
-  place("solar_field", "printed", -24, -8);
-  place("solar_field", "printed", -30, 3);
-  place("solar_field", "printed", -30, 20);
-  place("isru_plant", "printed", 34, 16);
-  place("water_extractor", "printed", 38, -10);
-  place("greenhouse", "inflatable", 8, 30);
-  place("greenhouse", "inflatable", 20, 34);
+  place("habitat", "inflatable", 24, 8);
+  place("habitat", "inflatable", 24, -12);
+  place("solar_field", "printed", -28, 14);
+  place("solar_field", "printed", -28, -8);
+  place("solar_field", "printed", -42, 4);
+  place("solar_field", "printed", -42, 24);
+  place("isru_plant", "printed", 42, 20);
+  place("water_extractor", "printed", 46, -14);
+  place("greenhouse", "inflatable", 10, 36);
+  place("greenhouse", "inflatable", 28, 42);
+  place("workshop", "printed", 56, 8);
 
   world.colonists = [];
   for (let i = 0; i < FOUNDING_CREW; i++) {

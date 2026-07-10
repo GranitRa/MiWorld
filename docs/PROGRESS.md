@@ -109,6 +109,27 @@ before WP-6/7. Fable's plan: `docs/hd2d-plan.md` (RWP-1..8).
   client terrain exactly. Worldgen is already fully engine-stable, so this is a data-flow
   change, not a determinism fix.
 
+## Fable max-effort review (2026-07-10) — sim hardening
+
+Ran Fable 5 at `effort: max` as an adversarial reviewer of the unreviewed sim (WP-5/WP-6). It
+reimplemented the systems tick-exact and ran 20 seeds × 600 sols, finding a **CRITICAL** flaw
+my short catch-up tests missed: the planner's "default habitat" filler under a frozen soft cap
+drove **75% of unattended runs into permanent power brownout** — inverting the hopeful-tone
+invariant. Verdict was NO-GO. Fixed:
+- **#1 (critical):** `chooseKind` returns null (build nothing) when satisfied instead of filler
+  habitats; solar is driven by a proactive power-margin projection (avg sun 0.318 × dust) not
+  the stockpile; housing counts in-progress to avoid over-queueing.
+- **#2 (high):** shortage beats use hysteresis (a per-good deficit "pressure" in sols) so normal
+  nightly dips don't spam the chronicle — only sustained deficits raise one onset.
+- **#3 (high):** guarded `BUILDING_ECONOMY[kind]`/`BUILD_SPEC[kind]` lookups.
+- **#4 (medium):** buildings now throttle inputs AND outputs by the brownout ratio (colonists
+  unthrottled) — no more water burned for nothing; shortages start to have teeth for WP-7.
+- **#5:** downstream shortage bonus suppressed while power is the root cause. **#7:** siteFor
+  fallback is fully checked. **#8:** seed colony given a 2nd water extractor + 5th solar.
+- New **soak test** (4 seeds × 250 sols): asserts stays-supplied + not-chronically-brownout —
+  the guardrail Fable recommended. Deferred (noted): #6 coarse-boundary onset, #9a/b forward
+  compat (uuid ids, dynamic cap for the deaths WP).
+
 ## Deviations from the plan (intentional)
 1. Migrations are embedded TS strings (`server/src/db/migrations.ts`), not `.sql` files —
    so the esbuild single-file bundle has no runtime filesystem dependency.

@@ -66,8 +66,10 @@ export function seedColony(world: World, landingSite: { x: number; z: number }, 
   place("solar_field", "printed", -28, -8);
   place("solar_field", "printed", -42, 4);
   place("solar_field", "printed", -42, 24);
+  place("solar_field", "printed", -56, 12);
   place("isru_plant", "printed", 42, 20);
   place("water_extractor", "printed", 46, -14);
+  place("water_extractor", "printed", 60, -22);
   place("greenhouse", "inflatable", 10, 36);
   place("greenhouse", "inflatable", 28, 42);
   place("workshop", "printed", 56, 8);

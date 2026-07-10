@@ -130,6 +130,20 @@ invariant. Verdict was NO-GO. Fixed:
   the guardrail Fable recommended. Deferred (noted): #6 coarse-boundary onset, #9a/b forward
   compat (uuid ids, dynamic cap for the deaths WP).
 
+**Fable re-verify (effort:max) → GO.** Fable read the real sources, ran the suite (15/15), and
+drove the ACTUAL code through its own harness: 16 seeds × 600 sols, dust pinned 0.6, feedstock
+drain, crippled start, pop ×2/×3, determinism double-run, placement audit (then cleaned up). All
+7 addressed findings genuinely fixed: tail chronic-power fraction **0.000 in every run** (was
+5–38%); zero beat spam (3 onsets over a forced 80-sol crisis); checked placement (min 15.3 m,
+max slope 0.29); determinism intact (0 NaN over ~24M ticks); growth visible (~12 builds by
+sol 35–60, plateau at softCap; pop→48 triggered 11 more builds, zero shortages = WP-7 ready).
+Non-blocking follow-ups for later WPs:
+- **WP-10:** at static pop the base pins exactly at softCap (26) with solar sized for dust 0.6;
+  storms raising dust >0.6 could cap-block the needed extra solar → exempt/raise the cap for
+  solar under an active power deficit.
+- **WP-7:** gate greenhouse (and other) output by non-power input availability when food/water
+  become lethal (today a dry greenhouse still makes ~1 food/crisis — negligible at static pop).
+
 ## Deviations from the plan (intentional)
 1. Migrations are embedded TS strings (`server/src/db/migrations.ts`), not `.sql` files —
    so the esbuild single-file bundle has no runtime filesystem dependency.

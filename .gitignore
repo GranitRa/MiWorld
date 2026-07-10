@@ -1,0 +1,33 @@
+# === Secrets — never commit (public repo) ===
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+.railway/
+railway.toml.local
+
+# === Dependencies ===
+node_modules/
+.pnpm-store/
+
+# === Build output ===
+dist/
+build/
+*.tsbuildinfo
+
+# === Logs / temp ===
+*.log
+npm-debug.log*
+.cache/
+coverage/
+
+# === Editor / OS ===
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# === Design source (large binary, kept out of the code repo) ===
+*.docx

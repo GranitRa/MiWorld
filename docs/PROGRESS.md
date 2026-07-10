@@ -30,6 +30,23 @@ harmless by design (chronicle has its own serial PK; stream id is never written 
 |----|-------|--------|
 | WP-4 | Deterministic Mars worldgen + client terrain | ✅ done |
 
+## Phase 2 — a colony that builds itself 🚧
+
+| WP | Title | Status |
+|----|-------|--------|
+| WP-5 | Resource & life-support economy | ✅ done |
+
+WP-5: server generates the planet at founding and seeds a starter colony at the landing
+site (crew of 16 + a viable module cluster). `shared/src/goods.ts` catalogs per-building
+production/consumption + per-colonist life support + caps. `environmentSystem` drifts dust;
+`resourcesSystem` settles in two passes — power balance → brownout ratio, then all other
+producers throttle by it, so a dust storm / night cascades legibly into O₂/water/food
+shortfalls (Shortage recorded on the world; onset emits a chronicle beat, power before the
+goods it powers). Registered before boot so catch-up fast-forwards the economy too.
+Verified: unit tests (cascade order + a colony that stays supplied over 5 sols); live
+2-sol catch-up showed O₂ climbing, power breathing, dust drifting, no shortages. `/healthz`
+now exposes stock/dust/counts/shortages.
+
 **Verification:** 4 worldgen determinism tests green (same seed → identical heightfield,
 landing site flat & in-bounds, craters/canyon/deposits present). Visually verified in the
 browser: red Mars terrain with craters, a lit mountain spine, ice deposits, a lander at

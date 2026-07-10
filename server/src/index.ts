@@ -7,10 +7,12 @@ import express from "express";
 import {
   BURST_LAG_TICKS,
   CATCHUP_CAP_WORLD_SEC,
+  GOODS,
   MARS_SOL_SECONDS,
   REAL_MS_PER_TICK,
   SNAPSHOT_INTERVAL_REAL_MS,
   TICK_WORLD_SECONDS,
+  generatePlanet,
   type ChronicleCategory,
   type ChronicleEvent,
   type EntityDelta,
@@ -29,7 +31,8 @@ import {
 } from "./db/persistence";
 import { deadlineForTick, Heartbeat, planBoot } from "./sim/clock";
 import { RngGateway } from "./sim/rng";
-import { createWorld } from "./sim/world";
+import { createWorld, normalizeWorld, seedColony } from "./sim/world";
+import { registerSystems } from "./sim/systems/register";
 import { fastForwardTo, stepTick, type EmittedEvent, type SimContext } from "./sim/engine";
 import { Broadcaster } from "./net/wsServer";
 import { buildTick, coalesceDeltas } from "./net/serializer";
@@ -40,6 +43,7 @@ const clientDist = join(here, "../../client/dist");
 
 async function main() {
   const pool = getPool();
+  registerSystems(); // before boot, so catch-up fast-forward runs the sim systems too
 
   // Mutable holder so the WS broadcaster and /healthz always read the current world.
   // `live` flips true once we own the write-lock and the heartbeat is running.
@@ -58,7 +62,7 @@ async function main() {
   try {
     const snap = await loadLatestSnapshot(pool);
     if (snap) {
-      state.world = snap.world;
+      state.world = normalizeWorld(snap.world);
       state.rng = new RngGateway(snap.world.seed, snap.rng);
     }
   } catch {
@@ -102,6 +106,13 @@ async function main() {
       sol: Math.floor(state.world.worldTimeSec / MARS_SOL_SECONDS),
       tickAgeMs: state.live ? Date.now() - lastTickRealMs : null,
       viewers: broadcaster.clientCount,
+      dust: Number(state.world.dust.toFixed(3)),
+      buildings: state.world.buildings.length,
+      colonists: state.world.colonists.filter((c) => c.alive).length,
+      shortages: state.world.shortages,
+      stock: Object.fromEntries(
+        GOODS.map((g) => [g, Math.round(state.world.treasury[g].amount)]),
+      ),
     });
   });
 
@@ -172,6 +183,8 @@ async function main() {
     const seed = Math.floor(Math.random() * 2 ** 31);
     state.world = createWorld(seed);
     state.rng = new RngGateway(seed);
+    const planet = generatePlanet(seed);
+    seedColony(state.world, planet.landingSite, state.rng);
     state.foundedRealMs = now;
     await saveSnapshot(pool, freezeSnapshot(state.world, state.rng.serialize(), state.foundedRealMs));
     await insertChronicle(pool, {
@@ -179,18 +192,18 @@ async function main() {
       worldTimeSec: 0,
       category: "founding",
       priority: 10,
-      title: "The world begins",
-      body: "A seed is cast; Mars awaits its first landing.",
+      title: "First landing",
+      body: `${state.world.colonists.length} colonists touch down on Mars and raise the first modules.`,
       subjectRefs: [],
-      cameraHint: null,
+      cameraHint: state.world.landingSite,
     });
-    console.log(`founded new world seed=${seed}`);
+    console.log(`founded new world seed=${seed} crew=${state.world.colonists.length}`);
   } else {
     // Reload the authoritative snapshot now that we're the writer (it may be newer than
     // what we loaded before the lock — e.g. the retired instance's final save).
     const snap = await loadLatestSnapshot(pool);
     if (snap) {
-      state.world = snap.world;
+      state.world = normalizeWorld(snap.world);
       state.rng = new RngGateway(snap.world.seed, snap.rng);
     } else {
       state.world = createWorld(meta.seed);

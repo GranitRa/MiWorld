@@ -77,7 +77,13 @@ export interface World {
   worldTimeSec: number;
   status: WorldStatus;
   settlementName: string | null;
+  /** Colony landing site (from deterministic worldgen), origin of the settlement. */
+  landingSite: { x: number; z: number };
+  /** Atmospheric dust opacity 0..1; dims solar output (storms push it high in WP-10). */
+  dust: number;
   treasury: ResourceLedger;
+  /** Current unmet demand per good (0/absent = supplied). Drives later mortality/rescue. */
+  shortages: Partial<Record<Good, number>>;
   buildings: Building[];
   colonists: Colonist[];
   /** Pooled (unnamed) population per district id. */

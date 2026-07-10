@@ -1,34 +1,45 @@
 import { Color } from "three";
 
-// Mars surface palette. Colour comes from elevation and slope: dusty ochre plains,
-// lighter wind-blown tops, dark exposed rock on steep faces, deep rust in the hollows.
-const DEEP = new Color("#5b3120");
-const LOW = new Color("#9c5836");
-const MID = new Color("#b67243");
-const HIGH = new Color("#caa06e");
-const ROCK = new Color("#6a4530");
+// Mars surface palette — illuminated-manuscript storybook: saturated ochres and rust with
+// painterly variation, pale wind-blown highlights, dark umber in the hollows, exposed rock
+// on steep faces. Colour comes from elevation, slope, and a low-frequency painterly tint.
+const DEEP = new Color("#47210f"); // hollows / crater floors
+const LOW = new Color("#a8481f"); // rust plains
+const MID = new Color("#c86a2c"); // ochre
+const HIGH = new Color("#e0ab6a"); // pale dust tops
+const ROCK = new Color("#6b3f27"); // exposed rock on steep faces
+const WARM = new Color("#e2762a"); // painterly warm patch
+const COOL = new Color("#8a4640"); // painterly cool (dusty rose) patch
 
-const tmp = new Color();
+const tmpRock = new Color();
+const tmpTint = new Color();
 
-/** Vertex colour for a point at world height `y` (metres) and terrain `slope` (rise/run). */
-export function surfaceColor(y: number, slope: number, out = new Color()): Color {
-  // Normalise height into ~[0,1] across the world's vertical range.
+/**
+ * Vertex colour for a point at world height `y` (m), terrain `slope` (rise/run), and a
+ * painterly `variation` in [-1,1] (low-frequency noise) that mottles warm/cool patches so
+ * the surface reads as painted, not uniform.
+ */
+export function surfaceColor(y: number, slope: number, variation = 0, out = new Color()): Color {
   const h = Math.max(0, Math.min(1, (y + 160) / 620));
 
-  if (h < 0.25) out.copy(DEEP).lerp(LOW, h / 0.25);
-  else if (h < 0.6) out.copy(LOW).lerp(MID, (h - 0.25) / 0.35);
-  else out.copy(MID).lerp(HIGH, (h - 0.6) / 0.4);
+  if (h < 0.28) out.copy(DEEP).lerp(LOW, h / 0.28);
+  else if (h < 0.62) out.copy(LOW).lerp(MID, (h - 0.28) / 0.34);
+  else out.copy(MID).lerp(HIGH, (h - 0.62) / 0.38);
+
+  // Painterly warm/cool mottling.
+  if (variation >= 0) out.lerp(tmpTint.copy(WARM), variation * 0.3);
+  else out.lerp(tmpTint.copy(COOL), -variation * 0.28);
 
   // Steep faces expose darker rock.
-  const rockiness = Math.min(1, slope * 1.6);
-  out.lerp(tmp.copy(ROCK), rockiness * 0.7);
+  const rockiness = Math.min(1, slope * 1.7);
+  out.lerp(tmpRock.copy(ROCK), rockiness * 0.72);
   return out;
 }
 
 // Sky / atmosphere key colours, lerped by time of sol in sky.ts.
-export const SKY_DAY_TOP = new Color("#3a4a6b");
-export const SKY_DAY_HORIZON = new Color("#c98f5a");
+export const SKY_DAY_TOP = new Color("#4a5580");
+export const SKY_DAY_HORIZON = new Color("#e6a659");
 export const SKY_NIGHT_TOP = new Color("#05060d");
-export const SKY_NIGHT_HORIZON = new Color("#15121f");
-export const SUN_COLOR = new Color("#ffd9a8");
-export const DUST_FOG = new Color("#c58a5b");
+export const SKY_NIGHT_HORIZON = new Color("#1a1424");
+export const SUN_COLOR = new Color("#ffdca6");
+export const DUST_FOG = new Color("#cf9059");

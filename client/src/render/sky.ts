@@ -31,7 +31,8 @@ const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 export class Sky {
   readonly sun = new DirectionalLight(0xffffff, 2.2);
   readonly sunDirection = new Vector3(0, 1, 0);
-  private readonly hemi = new HemisphereLight(0xffd9a8, 0x2a1a12, 0.5);
+  // Warm sky fill, cool ground bounce → painterly warm tops / cool shadows.
+  private readonly hemi = new HemisphereLight(0xffe0b0, 0x3a2c47, 0.55);
   private readonly dome: Mesh;
   private readonly stars: Points;
   private readonly uniforms;
@@ -107,8 +108,8 @@ export class Sky {
     // A default position; the app repositions the sun each frame to track the view so the
     // shadow frustum stays over what the camera is looking at.
     this.sun.position.copy(dir).multiplyScalar(4000);
-    this.sun.intensity = 0.15 + day * 2.4;
-    this.hemi.intensity = 0.18 + day * 0.5;
+    this.sun.intensity = 0.2 + day * 2.5;
+    this.hemi.intensity = 0.28 + day * 0.55;
 
     this.uniforms.sunDir.value.copy(dir);
     this.uniforms.sunUp.value = day;

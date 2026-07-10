@@ -8,10 +8,10 @@ import {
   MeshBasicMaterial,
   DoubleSide,
 } from "three";
-import type { Planet } from "@miworld/shared";
+import { fbm, type Planet } from "@miworld/shared";
 import { surfaceColor } from "./palette";
 
-const SEGMENTS = 240; // 8 km / 240 ≈ 33 m facets — macro terrain; detail LOD arrives in WP-12
+const SEGMENTS = 200; // faceted low-poly forms; detail LOD arrives in WP-12
 
 /**
  * Build the Mars terrain mesh from the deterministic planet. Heights come from
@@ -34,7 +34,9 @@ export function buildTerrain(planet: Planet): Group {
     const z = pos.getZ(i);
     const y = planet.height(x, z);
     pos.setY(i, y);
-    surfaceColor(y, planet.slopeAt(x, z), col);
+    // Low-frequency painterly tint patches, in [-1, 1].
+    const variation = fbm(x / 900, z / 900, planet.seed ^ 0x0c010, { octaves: 3 }) * 2 - 1;
+    surfaceColor(y, planet.slopeAt(x, z), variation, col);
     colors[i * 3] = col.r;
     colors[i * 3 + 1] = col.g;
     colors[i * 3 + 2] = col.b;
@@ -46,9 +48,9 @@ export function buildTerrain(planet: Planet): Group {
 
   const mat = new MeshStandardMaterial({
     vertexColors: true,
-    roughness: 0.98,
+    roughness: 1.0,
     metalness: 0.0,
-    flatShading: false,
+    flatShading: true, // faceted low-poly forms
   });
   const mesh = new Mesh(geo, mat);
   mesh.receiveShadow = true;

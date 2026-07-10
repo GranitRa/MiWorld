@@ -1,5 +1,4 @@
 import {
-  ACESFilmicToneMapping,
   ConeGeometry,
   CylinderGeometry,
   Group,
@@ -16,6 +15,7 @@ import { Connection, defaultWsUrl } from "./net/connection";
 import { PlaybackBuffer } from "./net/playback";
 import { buildTerrain } from "./render/terrain";
 import { Sky } from "./render/sky";
+import { PostFX } from "./render/post";
 import { CameraRig } from "./camera/rig";
 
 // --- DOM / renderer -------------------------------------------------------
@@ -36,14 +36,13 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = PCFSoftShadowMap;
 renderer.outputColorSpace = SRGBColorSpace;
-renderer.toneMapping = ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
 app.appendChild(renderer.domElement);
 
 const scene = new Scene();
 const camera = new PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 20000);
 const rig = new CameraRig(camera, renderer.domElement);
 const sky = new Sky(scene);
+const post = new PostFX(renderer, scene, camera);
 
 let worldTimeSec = 0;
 let planet: Planet | null = null;
@@ -53,6 +52,7 @@ function resize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  post.setSize(window.innerWidth, window.innerHeight);
 }
 window.addEventListener("resize", resize);
 resize();
@@ -115,7 +115,7 @@ function frame() {
   sky.sun.target.position.copy(rig.target);
   sky.sun.target.updateMatrixWorld();
 
-  renderer.render(scene, camera);
+  post.render();
   updateClock(solFraction);
   requestAnimationFrame(frame);
 }

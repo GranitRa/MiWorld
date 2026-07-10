@@ -36,9 +36,16 @@ browser: red Mars terrain with craters, a lit mountain spine, ice deposits, a la
 the flat landing site, a gradient sky dome + dust fog, sol day-cycle sun, custom
 orbit/pan/zoom rig with terrain collision. 19 tests total green.
 
+**Aesthetic decision (2026-07-10):** after a low-poly pass and an HD-2D prototype, Granit
+chose **HD-2D** (Dragon Quest III remake / Octopath Traveler) as the visual identity:
+pixelated 3D diorama + tilt-shift miniature depth of field + bloom + warm filmic grade
+(`client/src/render/post.ts`). This revises two original pillars — "seamless orbital→face
+zoom" → "zoom within a diorama"; "no external assets" → "procedural pixel-art for now,
+authored pixel sprites optional later". **Next:** Fable re-plans the full HD-2D rendering
+pipeline (pixel-texture terrain, sprite system for colonists/buildings, diorama camera)
+before WP-6/7.
+
 **Follow-ups noted:**
-- Aesthetic is currently smooth-realistic; the design doc wants a more faceted low-poly
-  "illuminated-manuscript storybook" look — a palette/shading pass to dial in with Granit.
 - Before WP-6 (buildings), move planet feature generation to server-authoritative (send
   craters/canyon/deposits/landingSite in the snapshot) so server building placement matches
   client terrain exactly. Worldgen is already fully engine-stable, so this is a data-flow

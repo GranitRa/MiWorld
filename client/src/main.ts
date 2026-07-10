@@ -58,19 +58,25 @@ resize();
 // --- Build the world once, from the seed --------------------------------
 function buildWorld(seed: number, initialBuildings: Building[]) {
   setStatus("forging the planet…");
-  // Defer a frame so the status paints before the (brief) synchronous worldgen.
-  requestAnimationFrame(() => {
-    const p = generatePlanet(seed);
-    planet = p;
-    const source = new ProceduralSpriteSource(seed);
-    scene.add(buildTerrain(p, source));
-    buildings = new BuildingLayer(p, source);
-    scene.add(buildings.group);
-    buildings.syncAll(initialBuildings);
-    rig.setHeightSampler((x, z) => p.height(x, z));
-    rig.focus(p.landingSite.x, p.landingSite.z, 700);
-    setStatus("● live");
-  });
+  // Defer via setTimeout (not rAF) so worldgen still runs when the tab is hidden — rAF is
+  // paused for background tabs, which would otherwise stall the whole build.
+  setTimeout(() => {
+    try {
+      const p = generatePlanet(seed);
+      planet = p;
+      const source = new ProceduralSpriteSource(seed);
+      scene.add(buildTerrain(p, source));
+      buildings = new BuildingLayer(p);
+      scene.add(buildings.group);
+      buildings.syncAll(initialBuildings);
+      rig.setHeightSampler((x, z) => p.height(x, z));
+      rig.focus(p.landingSite.x, p.landingSite.z, 700);
+      setStatus("● live");
+    } catch (err) {
+      console.error("buildWorld failed:", err);
+      setStatus("error: " + String(err));
+    }
+  }, 0);
 }
 
 // --- Network stream drives world time -----------------------------------
@@ -106,9 +112,15 @@ function frame() {
 
   post.render();
   updateClock(solFraction);
-  requestAnimationFrame(frame);
+  scheduleFrame();
 }
-requestAnimationFrame(frame);
+// rAF pauses in background tabs; fall back to a low-rate timer when hidden so the world
+// still renders (screenshots, tab switches) without wasting GPU at full frame rate.
+function scheduleFrame() {
+  if (document.hidden) setTimeout(frame, 250);
+  else requestAnimationFrame(frame);
+}
+scheduleFrame();
 
 // --- HUD helpers ---------------------------------------------------------
 function setStatus(text: string) {

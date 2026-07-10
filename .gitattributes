@@ -2,3 +2,5 @@
 *.png binary
 *.jpg binary
 *.docx binary
+*.glb binary
+*.webp binary

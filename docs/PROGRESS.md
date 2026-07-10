@@ -44,11 +44,18 @@ it via a golden-angle spiral (low slope, spaced ≥14 m, water/O₂ plants near 
 feedstock, and streams it as an id-prefixed `b:` delta (new full record, then progress
 patches). Workshop now produces feedstock. Verified: unit test (builds + finishes, spaced,
 capped) + live 15-sol catch-up grew the colony 12→23 buildings.
-RWP-4 (client): `render/buildings.ts` `BuildingLayer` renders each kind as a procedural
-low-poly kit mesh with a pixel-art texture (`SpriteSource.building`), positioned on terrain,
-scaling up out of the ground by `progress` (glowing while under construction); upserts from
-the hello snapshot + `b:` deltas. Verified in-browser: a recognizable HD-2D Mars base
-(solar arrays, domed habitats, greenhouses, tanks, landing pad, monument).
+RWP-4 (client): `render/buildings.ts` `BuildingLayer` renders each building on terrain,
+scaling up out of the ground by `progress`; upserts from the hello snapshot + `b:` deltas.
+**Buildings now use CC0 3D models** (Quaternius Ultimate Space Kit, `client/public/models/
+spacekit/*.glb`, loaded via GLTFLoader) — Granit chose authored CC0 models over the
+procedural boxes; look is now clean low-poly 3D buildings on the pixel-art world. Verified
+in-browser: geodesic dome, habitat pods, solar arrays, base modules, landing pad.
+
+Two rendering-robustness bugs fixed during this: worldgen was deferred via
+`requestAnimationFrame` (paused in background tabs → build stalled) → now `setTimeout`; the
+render loop was pure rAF (no frames when hidden) → now a visibility-aware scheduler
+(rAF when visible, low-rate `setTimeout` when hidden). Important for a "check back later"
+persistent watch-app.
 
 WP-5: server generates the planet at founding and seeds a starter colony at the landing
 site (crew of 16 + a viable module cluster). `shared/src/goods.ts` catalogs per-building

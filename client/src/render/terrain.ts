@@ -10,6 +10,7 @@ import {
 } from "three";
 import { fbm, type Planet } from "@miworld/shared";
 import { surfaceColor } from "./palette";
+import { ProceduralSpriteSource } from "../pixelart/source";
 
 const SEGMENTS = 200; // faceted low-poly forms; detail LOD arrives in WP-12
 
@@ -26,7 +27,6 @@ export function buildTerrain(planet: Planet): Group {
 
   const pos = geo.attributes.position as BufferAttribute;
   const colors = new Float32Array(pos.count * 3);
-  const c = { r: 0, g: 0, b: 0 };
   const col = surfaceColor(0, 0);
 
   for (let i = 0; i < pos.count; i++) {
@@ -41,7 +41,6 @@ export function buildTerrain(planet: Planet): Group {
     colors[i * 3 + 1] = col.g;
     colors[i * 3 + 2] = col.b;
   }
-  void c;
 
   geo.setAttribute("color", new BufferAttribute(colors, 3));
   geo.computeVertexNormals();
@@ -52,6 +51,37 @@ export function buildTerrain(planet: Planet): Group {
     metalness: 0.0,
     flatShading: true, // faceted low-poly forms
   });
+
+  // Micro pixel-art regolith grain (RWP-3): two seeded tiles sampled in world space at
+  // different scales and multiplied onto the vertex colour, so crisp texels stay glued to
+  // the ground while orbiting (no screen-space pixel crawl).
+  const source = new ProceduralSpriteSource(planet.seed);
+  const tile0 = source.terrainTile(0);
+  const tile1 = source.terrainTile(1);
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uTile0 = { value: tile0 };
+    shader.uniforms.uTile1 = { value: tile1 };
+    shader.vertexShader =
+      "varying vec3 vWorldPos;\n" +
+      shader.vertexShader.replace(
+        "#include <begin_vertex>",
+        "#include <begin_vertex>\n  vWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;",
+      );
+    shader.fragmentShader =
+      "uniform sampler2D uTile0;\nuniform sampler2D uTile1;\nvarying vec3 vWorldPos;\n" +
+      shader.fragmentShader.replace(
+        "#include <color_fragment>",
+        `#include <color_fragment>
+        {
+          vec2 w = vWorldPos.xz;
+          vec3 t1 = texture2D(uTile0, w / 32.0).rgb;
+          vec3 t2 = texture2D(uTile1, w / 17.0 + vec2(0.37)).rgb;
+          vec3 grain = t1 * t2 * 1.7;
+          diffuseColor.rgb *= mix(vec3(1.0), grain, 0.6);
+        }`,
+      );
+  };
+
   const mesh = new Mesh(geo, mat);
   mesh.receiveShadow = true;
   mesh.name = "terrain";

@@ -107,6 +107,7 @@ conn.connect();
 // --- Render loop ---------------------------------------------------------
 function frame() {
   rig.update();
+  post.setFocusDistance(camera.position.distanceTo(rig.target));
 
   const solFraction = ((worldTimeSec % MARS_SOL_SECONDS) + MARS_SOL_SECONDS) % MARS_SOL_SECONDS / MARS_SOL_SECONDS;
   sky.update(solFraction);

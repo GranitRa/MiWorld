@@ -43,7 +43,20 @@ pixelated 3D diorama + tilt-shift miniature depth of field + bloom + warm filmic
 zoom" → "zoom within a diorama"; "no external assets" → "procedural pixel-art for now,
 authored pixel sprites optional later". **Next:** Fable re-plans the full HD-2D rendering
 pipeline (pixel-texture terrain, sprite system for colonists/buildings, diorama camera)
-before WP-6/7.
+before WP-6/7. Fable's plan: `docs/hd2d-plan.md` (RWP-1..8).
+
+**HD-2D rendering built so far (RWP-1→3, done):**
+- RWP-1: `post.ts` switched to TRUE HD-2D — dropped screen-space RenderPixelatedPass (it
+  crawled on camera motion), now RenderPass + SMAA + bloom + tilt-shift + warm grade;
+  `setFocusDistance` eases tilt-shift by camera distance.
+- RWP-2: procedural pixel-art factory — `client/src/pixelart/{prng,palette,factory,source}.ts`
+  (deterministic per (seed, assetKey), fixed 32-colour palette, NearestFilter canvases,
+  `SpriteSource` interface so authored sprites can swap in later).
+- RWP-3: terrain pixel grain — two seeded regolith tiles multiplied onto the terrain via
+  `onBeforeCompile`, glued to world space (crisp texels, no crawl).
+- Verified in-browser: crisp pixel ground, miniature tilt-shift, smooth camera. Remaining
+  RWP-4 (buildings)/5 (colonists) depend on sim WP-6/7; RWP-6 will make tilt-shift focus
+  track the subject (current fixed band is a touch strong at mid zoom).
 
 **Follow-ups noted:**
 - Before WP-6 (buildings), move planet feature generation to server-authoritative (send

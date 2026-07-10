@@ -1,12 +1,15 @@
 import type { PerspectiveCamera, Scene, WebGLRenderer } from "three";
-import { Vector2, Vector3 } from "three";
+import { MathUtils, Vector2, Vector3 } from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-import { RenderPixelatedPass } from "three/addons/postprocessing/RenderPixelatedPass.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { SMAAPass } from "three/addons/postprocessing/SMAAPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 
-// HD-2D flavour: a pixelated 3D base (DQ3/Octopath), a soft bloom, a tilt-shift blur that
-// fakes a miniature-diorama depth of field, and a warm filmic colour grade + vignette.
+// True HD-2D: the "pixel" lives in the ART (low-res NearestFilter textures + sprites), not
+// in a screen-space filter — so the image never crawls as the camera orbits. We render the
+// pixel-art crisply at native resolution, smooth geometry silhouettes with SMAA, then apply
+// a soft bloom, a tilt-shift "miniature" depth of field, and a warm filmic grade + vignette.
 
 const COPY_VERT = `
   varying vec2 vUv;
@@ -75,36 +78,42 @@ const GradeShader = {
 
 export class PostFX {
   private readonly composer: EffectComposer;
+  private readonly smaa: SMAAPass;
   private readonly tilt: ShaderPass;
+  private readonly baseStrength = 0.6;
 
-  constructor(
-    renderer: WebGLRenderer,
-    scene: Scene,
-    camera: PerspectiveCamera,
-    pixelSize = 4,
-  ) {
+  constructor(renderer: WebGLRenderer, scene: Scene, camera: PerspectiveCamera) {
     this.composer = new EffectComposer(renderer);
-
-    const pixel = new RenderPixelatedPass(pixelSize, scene, camera);
-    pixel.normalEdgeStrength = 0.12;
-    pixel.depthEdgeStrength = 0.18;
-    this.composer.addPass(pixel);
-
     const size = renderer.getSize(new Vector2());
-    const bloom = new UnrealBloomPass(size, 0.4, 0.7, 0.85); // strength, radius, threshold
-    this.composer.addPass(bloom);
+
+    this.composer.addPass(new RenderPass(scene, camera));
+
+    this.smaa = new SMAAPass(size.x, size.y);
+    this.composer.addPass(this.smaa);
+
+    this.composer.addPass(new UnrealBloomPass(size, 0.4, 0.7, 0.85)); // strength, radius, threshold
 
     this.tilt = new ShaderPass(TiltShiftShader);
     this.composer.addPass(this.tilt);
 
-    const grade = new ShaderPass(GradeShader);
-    this.composer.addPass(grade);
+    this.composer.addPass(new ShaderPass(GradeShader));
 
     this.setSize(size.x, size.y);
   }
 
+  /**
+   * Ease the tilt-shift ("miniature") strength by how far the camera is from its subject:
+   * strong up close for the diorama feel, off at overview altitude so the map isn't smeared.
+   */
+  setFocusDistance(distanceMeters: number): void {
+    const t = MathUtils.clamp((distanceMeters - 900) / (2500 - 900), 0, 1);
+    const s = this.tilt.uniforms.strength;
+    if (s) s.value = MathUtils.lerp(this.baseStrength, 0, t);
+  }
+
   setSize(width: number, height: number): void {
     this.composer.setSize(width, height);
+    this.smaa.setSize(width, height);
     const texel = this.tilt.uniforms.texel;
     if (texel) (texel.value as Vector2).set(1 / width, 1 / height);
   }

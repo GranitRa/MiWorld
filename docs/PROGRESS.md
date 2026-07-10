@@ -57,6 +57,13 @@ render loop was pure rAF (no frames when hidden) → now a visibility-aware sche
 (rAF when visible, low-rate `setTimeout` when hidden). Important for a "check back later"
 persistent watch-app.
 
+**Building polish:** per-function colour tint (green greenhouses, warm habitats, blue solar),
+scale up (REF 7.5 m), greenhouse→house_long, workshop→base_large box (was a ring-frame
+model). Planner balance fix in `constructionSystem.chooseKind`: diminishing-returns penalty
+per kind stops over-building (was building 8 workshops / 9 solars chasing feedstock/power);
+now a varied, legible mix. Default camera focus tightened to 220 m so a fresh load frames
+the base. Verified in-browser (balanced colourful colony at noon).
+
 WP-5: server generates the planet at founding and seeds a starter colony at the landing
 site (crew of 16 + a viable module cluster). `shared/src/goods.ts` catalogs per-building
 production/consumption + per-colonist life support + caps. `environmentSystem` drifts dust;

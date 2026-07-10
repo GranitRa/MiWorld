@@ -44,15 +44,18 @@ function chooseKind(world: World): BuildingKind {
   const pop = population(world);
   const need = (good: keyof typeof GOOD_CAP) => 1 - t[good].amount / GOOD_CAP[good];
   const short = (good: string) => (world.shortages[good as keyof typeof world.shortages] ? 30 : 0);
+  const count = (k: BuildingKind) => world.buildings.filter((b) => b.kind === k).length;
 
+  // Diminishing returns per kind stop the planner over-building utilities (e.g. a wall of
+  // workshops chasing feedstock), so the settlement grows a varied, legible mix.
   const scores: [BuildingKind, number][] = [
-    ["solar_field", 16 * need("power") + short("power")],
-    ["greenhouse", 20 * need("food") + short("food")],
-    ["isru_plant", 16 * need("oxygen") + short("oxygen")],
-    ["water_extractor", 16 * need("water") + short("water")],
-    ["workshop", 12 * need("feedstock")],
-    ["habitat", pop - housing + 2], // crowding + a little baseline growth
-    ["dome", housing > pop * 1.6 ? 4 : 0],
+    ["solar_field", 16 * need("power") + short("power") - count("solar_field") * 3.5],
+    ["greenhouse", 20 * need("food") + short("food") - count("greenhouse") * 4],
+    ["isru_plant", 16 * need("oxygen") + short("oxygen") - count("isru_plant") * 7],
+    ["water_extractor", 16 * need("water") + short("water") - count("water_extractor") * 7],
+    ["workshop", 12 * need("feedstock") - count("workshop") * 9],
+    ["habitat", pop - housing + 2 - count("habitat") * 0.4], // crowding + baseline growth
+    ["dome", (housing > pop * 1.6 ? 5 : 1) - count("dome") * 3],
   ];
   scores.sort((a, b) => b[1] - a[1]);
   return scores[0]![1] > 0 ? scores[0]![0] : "habitat";

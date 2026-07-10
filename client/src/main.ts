@@ -70,7 +70,7 @@ function buildWorld(seed: number, initialBuildings: Building[]) {
       scene.add(buildings.group);
       buildings.syncAll(initialBuildings);
       rig.setHeightSampler((x, z) => p.height(x, z));
-      rig.focus(p.landingSite.x, p.landingSite.z, 700);
+      rig.focus(p.landingSite.x, p.landingSite.z, 220);
       setStatus("● live");
     } catch (err) {
       console.error("buildWorld failed:", err);

@@ -1,5 +1,6 @@
 import {
   Box3,
+  Color,
   CylinderGeometry,
   Group,
   MathUtils,
@@ -16,18 +17,32 @@ import type { Building, BuildingKind, Planet } from "@miworld/shared";
 const MODEL_FILE: Partial<Record<BuildingKind, string>> = {
   habitat: "habitat_cyl",
   dome: "dome",
-  greenhouse: "house_open",
+  greenhouse: "house_long",
   solar_field: "solar",
   isru_plant: "base_large",
   water_extractor: "building_l",
-  workshop: "workshop",
+  workshop: "base_large",
   tunnel: "connector",
   monument: "radar",
 };
 
-// Metres tall for the reference model (habitat); one uniform scale is derived from it and
+// Gentle per-function colour tint (multiplied onto the model's near-white materials) so the
+// base reads with colony life instead of sterile grey.
+const TINT: Partial<Record<BuildingKind, number>> = {
+  habitat: 0xfff0e2,
+  dome: 0xfff3e8,
+  greenhouse: 0xcfeecb,
+  solar_field: 0xd8e2ff,
+  isru_plant: 0xffe6cf,
+  water_extractor: 0xe4f0ff,
+  workshop: 0xffe8d2,
+  tunnel: 0xefe6da,
+  monument: 0xffe0c0,
+};
+
+// Metres tall for the reference model (habitat); one uniform scale derived from it is
 // applied to every model, so the kit's relative proportions are preserved.
-const REF_HEIGHT_M = 6;
+const REF_HEIGHT_M = 7.5;
 
 interface Entry {
   record: Building;
@@ -35,10 +50,10 @@ interface Entry {
 }
 
 /**
- * Renders colony buildings using loaded 3D models. `syncAll` seeds from the hello snapshot;
- * `applyDelta` upserts from "b:"-prefixed tick deltas. Records are tracked immediately;
- * meshes render once the models finish loading. A building scales up out of the ground as
- * its progress climbs (construction is the show).
+ * Renders colony buildings using loaded CC0 3D models. `syncAll` seeds from the hello
+ * snapshot; `applyDelta` upserts from "b:"-prefixed tick deltas. Records are tracked
+ * immediately; meshes render once the models finish loading. A building scales up out of
+ * the ground as its progress climbs (construction is the show).
  */
 export class BuildingLayer {
   readonly group = new Group();
@@ -57,28 +72,39 @@ export class BuildingLayer {
     const scenes = await Promise.all(
       kinds.map((k) => loader.loadAsync(`/models/spacekit/${MODEL_FILE[k]}.glb`).then((g) => g.scene)),
     );
-    const loaded = new Map<BuildingKind, Object3D>();
-    kinds.forEach((k, i) => loaded.set(k, scenes[i]!));
-
     // One global scale, derived from the reference model's natural height.
-    const ref = loaded.get("habitat")!;
+    const ref = scenes[kinds.indexOf("habitat")]!;
     const refH = new Box3().setFromObject(ref).getSize(new Vector3()).y || 1;
     const scale = REF_HEIGHT_M / refH;
 
-    for (const [kind, scene] of loaded) {
+    const normalize = (scene: Object3D, tintHex?: number) => {
       scene.scale.setScalar(scale);
       scene.updateMatrixWorld(true);
       const box = new Box3().setFromObject(scene);
       scene.position.y -= box.min.y; // base sits at y=0 so it grows from the ground
+      const tint = tintHex !== undefined ? new Color(tintHex) : null;
       scene.traverse((o) => {
         const mesh = o as Mesh;
-        if (mesh.isMesh) {
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
+        if (!mesh.isMesh) return;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        if (tint) {
+          const apply = (m: MeshStandardMaterial) => {
+            const c = m.clone();
+            c.color.multiply(tint);
+            return c;
+          };
+          mesh.material = Array.isArray(mesh.material)
+            ? mesh.material.map((m) => apply(m as MeshStandardMaterial))
+            : apply(mesh.material as MeshStandardMaterial);
         }
       });
-      this.protos.set(kind, scene);
-    }
+    };
+
+    kinds.forEach((k, i) => {
+      normalize(scenes[i]!, TINT[k]);
+      this.protos.set(k, scenes[i]!);
+    });
 
     this.ready = true;
     for (const b of this.records.values()) this.render(b);

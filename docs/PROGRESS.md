@@ -24,6 +24,26 @@ already-handled bigint). All fixed. Round 2 → GO; 6 residuals (client resync R
 loss R3, acquire crash-loop R4, shutdown exit-code R5, id counter R6) — R1–R5 fixed, R6
 harmless by design (chronicle has its own serial PK; stream id is never written to DB).
 
+## Phase 1 — a planet worth looking at 🚧
+
+| WP | Title | Status |
+|----|-------|--------|
+| WP-4 | Deterministic Mars worldgen + client terrain | ✅ done |
+
+**Verification:** 4 worldgen determinism tests green (same seed → identical heightfield,
+landing site flat & in-bounds, craters/canyon/deposits present). Visually verified in the
+browser: red Mars terrain with craters, a lit mountain spine, ice deposits, a lander at
+the flat landing site, a gradient sky dome + dust fog, sol day-cycle sun, custom
+orbit/pan/zoom rig with terrain collision. 19 tests total green.
+
+**Follow-ups noted:**
+- Aesthetic is currently smooth-realistic; the design doc wants a more faceted low-poly
+  "illuminated-manuscript storybook" look — a palette/shading pass to dial in with Granit.
+- Before WP-6 (buildings), move planet feature generation to server-authoritative (send
+  craters/canyon/deposits/landingSite in the snapshot) so server building placement matches
+  client terrain exactly. Worldgen is already fully engine-stable, so this is a data-flow
+  change, not a determinism fix.
+
 ## Deviations from the plan (intentional)
 1. Migrations are embedded TS strings (`server/src/db/migrations.ts`), not `.sql` files —
    so the esbuild single-file bundle has no runtime filesystem dependency.

@@ -44,6 +44,50 @@ harmless by design (chronicle has its own serial PK; stream id is never written 
 |----|-------|--------|
 | WP-8 | HUD + Chronicle + Inspector | ✅ done |
 
+## Phase 4 — a world that endures 🚧
+
+| WP | Title | Status |
+|----|-------|--------|
+| WP-9 | Earth link + unkillable colony | ✅ done (Fable max-effort → GO) |
+
+**Fable max-effort review (2026-07-11) — WP-9.** Round 1 → **NO-GO**: Fable read the full sim
+and ran its own repros, finding a **CRITICAL** my 2-tick reseed test missed — the construction
+planner's soft cap counted **ruins** (kept forever as monuments), so after the *first* collapse
+the reseeded colony hit the cap instantly and could never build, house, birth, or immigrate
+again: recovery was cosmetic, an eternal loop of doomed 16-person expeditions (violates the
+unkillable + hopeful reqs). Plus F2 (a `fallen`+`fallenSec:null` permanent soft-lock reachable
+via the snapshot-loss boot rebuild) and tone/chronicle gaps (F3 milestones lost under coarse,
+F4 a dead colony still building). Fixes: **F1** — cap + spiral + in-progress filter count only
+*standing* structures, and construction is gated off while `status!=="alive"`; **F2** — self-heal
+`fallenSec` in both the earth tick and `normalizeWorld`; **F3** — priority-10 milestones pass the
+coarse gate and boot-catch-up persists them, collapse/expedition emits unconditional; **F4** —
+status gate + ruin-skip; **F6** — reseed site is now a bounded, slope/spacing-checked spiral (no
+off-map drift); **F7** — a rescue clears shortage pressure so it can't instantly re-trigger. New
+regression test: collapse → reseed → 60 sols → asserts epoch-2 *actually* builds and grows past
+16. Round 2 re-verify → **GO** (18/18 + typecheck, 10 adversarial repros incl. 12 collapses to
+epoch 13 still building, byte-identical snapshot/restore through a reseed; no regressions).
+Deferred (LOW, noted by Fable): F5 in-flight ships aren't mourned at collapse (mechanically safe);
+boot-persisted milestones dated at gap-end; dead colonists accumulate across many epochs.
+
+WP-9: the colony is no longer a closed box — Earth answers it, and it can never truly die.
+New `earthSystem` (runs LAST in tick order, after population) plus `Flight` type and world
+fields `flights[]` / `lastFlightSec` / `fallenSec`:
+- **Ships in transit** — Earth launches flights that take world-weeks to arrive (`arriveSec`
+  in world-time, serialized in the snapshot so a mid-transit ship survives restart). On arrival
+  a ship delivers **feedstock** (fuels construction) and **immigrants** (fuel growth, `makeColonist`).
+- **Earth as balancer** — a life-support shortage triggers an **emergency rescue** (fast transit,
+  tops O₂/water/food back to 50% cap, brings 4 colonists if the crew is nearly gone); when the
+  colony **thrives** the flights grow rarer and lighter. Immigration is gated by spare housing
+  (`housingCapacity − alive ≥ 2`), so growth still couples to the settlement.
+- **Unkillable** — if population ever hits zero the world does NOT end: the settlement becomes
+  **ruins**, and after a short interval a **fresh expedition lands nearby**, the **epoch increments**,
+  and the old ruins persist as a monument to the first colony. `reseedColony` appends a new
+  starter cluster + crew (ids continue the array, never colliding) and restocks.
+Verified: an `earth` unit test (ships fly + births/immigration grow the colony over 80 sols; a
+forced collapse reseeds → epoch 2, ruins persist, status recovers to alive, new cluster lands).
+The soak now runs the full loop **including the Earth link** across 4 seeds × 250 sols and stays
+supplied and bounded (pop < 500 with immigration). 18 server tests + typecheck clean.
+
 WP-8: protocol gained a per-tick `hud` summary (pop, dust, stockpiles) and a `chronicle`
 backlog in hello (server keeps an in-memory ring of recent events). Client `ui/`:
 - `hud.ts` — top-left strip: title, status, sol clock, and a vitals row (population + power/

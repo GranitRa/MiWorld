@@ -27,6 +27,9 @@ describe("protocol", () => {
         buildings: [],
         colonists: [],
         pools: {},
+        flights: [],
+        lastFlightSec: 0,
+        fallenSec: null,
       },
     };
     const parsed = JSON.parse(JSON.stringify(msg)) as ServerMessage;

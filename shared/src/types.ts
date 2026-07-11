@@ -77,6 +77,17 @@ export interface ChronicleEvent {
 
 export type WorldStatus = "alive" | "fallen";
 
+export type FlightKind = "supply" | "rescue" | "colonists";
+
+/** A ship in transit from Earth; delivers feedstock + immigrants on arrival. */
+export interface Flight {
+  id: string;
+  kind: FlightKind;
+  arriveSec: number;
+  feedstock: number;
+  colonists: number;
+}
+
 /** The complete authoritative world state, snapshotted to Postgres as JSONB. */
 export interface World {
   seed: number;
@@ -95,4 +106,10 @@ export interface World {
   colonists: Colonist[];
   /** Pooled (unnamed) population per district id. */
   pools: Record<string, number>;
+  /** Ships inbound from Earth (resupply / rescue / immigration). */
+  flights: Flight[];
+  /** Sim-time of the last regular flight launch (cadence gate). */
+  lastFlightSec: number;
+  /** Sim-time the colony collapsed to zero, or null; drives the reseed timer. */
+  fallenSec: number | null;
 }

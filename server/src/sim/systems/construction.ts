@@ -80,7 +80,7 @@ function chooseKind(world: World): BuildingKind | null {
     ["isru_plant", 16 * need("oxygen") + short("oxygen") - count("isru_plant") * 7],
     ["water_extractor", 16 * need("water") + short("water") - count("water_extractor") * 7],
     ["workshop", 12 * need("feedstock") - count("workshop") * 9],
-    ["habitat", pop - housing + 2 - count("habitat") * 0.4], // grows housing toward pop, then stops
+    ["habitat", pop - housing + 4 - count("habitat") * 0.4], // grow housing with headroom for immigration
     ["dome", (housing > pop * 1.6 ? 5 : 1) - count("dome") * 3], // a little prosperity growth
   ];
   scores.sort((a, b) => b[1] - a[1]);
@@ -120,7 +120,9 @@ function siteFor(world: World, planet: Planet, kind: BuildingKind): { x: number;
   const okCell = (x: number, z: number) =>
     Math.abs(x) <= half && Math.abs(z) <= half && planet.slopeAt(x, z) <= 0.32 && spaced(x, z);
 
-  const base = world.buildings.length;
+  // Spiral offset from STANDING count (not total) so a reseeded colony's builds stay compact
+  // around the new landing site instead of starting far out past a field of old ruins (Fable F1).
+  const base = world.buildings.filter((b) => b.tier !== "ruin").length;
   for (let i = 0; i < 600; i++) {
     const idx = base + i;
     const r = 16 + Math.sqrt(idx) * 10;
@@ -147,10 +149,12 @@ function siteFor(world: World, planet: Planet, kind: BuildingKind): { x: number;
  * plans the next module. Buildings appear via delta (id-prefixed "b:") and grow to progress 1.
  */
 export const constructionSystem: System = (world, dt, ctx) => {
+  if (world.status !== "alive") return; // a fallen colony does not build (WP-9: no ghost construction)
   const dtSol = dt / MARS_SOL_SECONDS;
 
   // --- advance in-progress builds ---
   for (const b of world.buildings) {
+    if (b.tier === "ruin") continue; // ruins never advance/complete
     if (b.progress >= 1) continue;
     const sols = BUILD_SPEC[b.kind]?.sols ?? 1;
     const was = b.progress;
@@ -169,11 +173,15 @@ export const constructionSystem: System = (world, dt, ctx) => {
   }
 
   // --- plan the next project (only when a real need exists) ---
-  const inProgress = world.buildings.filter((b) => b.progress < 1);
+  const inProgress = world.buildings.filter((b) => b.tier !== "ruin" && b.progress < 1);
   if (inProgress.length >= 2) return;
   if (inProgress.some((b) => b.progress < 0.2)) return; // one just broke ground
+  // CRITICAL (Fable F1): count only STANDING structures against the cap — ruins from an old
+  // epoch are kept forever as monuments, so counting them would permanently freeze the planner
+  // after the first collapse and make every reseed a colony that can never grow.
+  const standing = world.buildings.filter((b) => b.tier !== "ruin").length;
   const softCap = 10 + population(world);
-  if (world.buildings.length >= softCap) return;
+  if (standing >= softCap) return;
 
   const kind = chooseKind(world);
   if (!kind) return; // colony is satisfied — build nothing

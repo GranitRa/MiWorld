@@ -237,6 +237,21 @@ async function main() {
     if (plan.startWorldTimeSec > state.world.worldTimeSec) {
       const caught: EmittedEvent[] = [];
       fastForwardTo(state.world, plan.startWorldTimeSec, state.rng, (e) => caught.push(e));
+      // Persist milestones that happened during the offline gap (a fall / a new expedition) so
+      // the deep history isn't silently lost to the catch-up (Fable F3). Ordinary beats stay muted.
+      for (const e of caught) {
+        if (e.priority < 10) continue;
+        await insertChronicle(pool, {
+          epoch: state.world.epoch,
+          worldTimeSec: state.world.worldTimeSec,
+          category: e.category as ChronicleCategory,
+          priority: e.priority,
+          title: e.title,
+          body: e.body,
+          subjectRefs: e.subjectRefs,
+          cameraHint: e.cameraHint,
+        });
+      }
     }
     if (plan.skippedWorldSec > 0) {
       await insertChronicle(pool, {
@@ -276,7 +291,7 @@ async function main() {
       rng: state.rng,
       coarse,
       emit: (e: EmittedEvent) => {
-        if (coarse) return; // suppress spam during a catch-up burst
+        if (coarse && e.priority < 10) return; // suppress spam during a catch-up burst, but keep milestones (Fable F3)
         const event: ChronicleEvent = {
           id: ++streamEventId,
           epoch: state.world.epoch,

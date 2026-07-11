@@ -5,6 +5,7 @@ import { environmentSystem } from "../src/sim/systems/environment";
 import { resourcesSystem } from "../src/sim/systems/resources";
 import { constructionSystem } from "../src/sim/systems/construction";
 import { populationSystem } from "../src/sim/systems/population";
+import { earthSystem } from "../src/sim/systems/earth";
 import { RngGateway } from "../src/sim/rng";
 import type { SimContext } from "../src/sim/engine";
 
@@ -26,6 +27,7 @@ function soak(seed: number, sols: number) {
     resourcesSystem(world, TICK_WORLD_SECONDS, ctx);
     constructionSystem(world, TICK_WORLD_SECONDS, ctx);
     populationSystem(world, TICK_WORLD_SECONDS, ctx);
+    earthSystem(world, TICK_WORLD_SECONDS, ctx);
     if (i >= tailStart) {
       tailTicks++;
       if ((world.shortages.power ?? 0) >= 0.5) powerShortTicks++;
@@ -47,9 +49,9 @@ describe("colony soak (hopeful-tone invariant)", () => {
         }
         // Fable measured 5–38% chronic on the buggy planner; healthy must be near-zero.
         expect(chronicPower).toBeLessThan(0.1);
-        // Population grows (births > deaths) but stays bounded — hopeful, not runaway.
+        // Population grows (births + Earth immigration) but stays bounded — hopeful, not runaway.
         expect(pop).toBeGreaterThan(16);
-        expect(pop).toBeLessThan(250);
+        expect(pop).toBeLessThan(500);
       },
       30000,
     );

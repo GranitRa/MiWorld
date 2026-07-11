@@ -22,19 +22,14 @@ import { ColonistLayer } from "./render/colonists";
 import { Sky } from "./render/sky";
 import { PostFX } from "./render/post";
 import { CameraRig } from "./camera/rig";
+import { Hud } from "./ui/hud";
+import { Chronicle } from "./ui/chronicle";
+import { Inspector } from "./ui/inspector";
 
 // --- DOM / renderer -------------------------------------------------------
 const app = document.getElementById("app")!;
-app.innerHTML = `
-  <div id="hud">
-    <div id="title">MiWorld</div>
-    <div id="status">connecting…</div>
-    <div id="clock"></div>
-    <div id="hint">drag to orbit · shift-drag to pan · scroll to zoom</div>
-  </div>
-`;
 Object.assign(app.style, { position: "fixed", inset: "0", margin: "0" });
-injectHudStyles();
+const hud = new Hud(app);
 
 const renderer = new WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -48,6 +43,7 @@ const camera = new PerspectiveCamera(55, window.innerWidth / window.innerHeight,
 const rig = new CameraRig(camera, renderer.domElement);
 const sky = new Sky(scene);
 const post = new PostFX(renderer, scene, camera);
+const chronicle = new Chronicle(app, (hint) => rig.focus(hint.x, hint.z, 90));
 
 let worldTimeSec = 0;
 let planet: Planet | null = null;
@@ -67,7 +63,7 @@ resize();
 
 // --- Build the world once, from the seed --------------------------------
 function buildWorld(seed: number, initialBuildings: Building[], initialColonists: Colonist[]) {
-  setStatus("forging the planet…");
+  hud.setStatus("forging the planet…");
   // Defer via setTimeout (not rAF) so worldgen still runs when the tab is hidden — rAF is
   // paused for background tabs, which would otherwise stall the whole build.
   setTimeout(() => {
@@ -82,31 +78,36 @@ function buildWorld(seed: number, initialBuildings: Building[], initialColonists
       colonists = new ColonistLayer(p);
       scene.add(colonists.group);
       colonists.syncAll(initialColonists);
+      new Inspector(app, camera, renderer.domElement, buildings, colonists);
       rig.setHeightSampler((x, z) => p.height(x, z));
       rig.focus(p.landingSite.x, p.landingSite.z, 60);
-      setStatus("● live");
+      hud.setStatus("● live");
     } catch (err) {
       console.error("buildWorld failed:", err);
-      setStatus("error: " + String(err));
+      hud.setStatus("error: " + String(err));
     }
   }, 0);
 }
 
-// --- Network stream drives world time -----------------------------------
+// --- Network stream --------------------------------------------------------
 const conn = new Connection(defaultWsUrl(), {
   onHello: (m) => {
     worldTimeSec = m.worldTimeSec;
+    chronicle.seed(m.chronicle);
     if (!planet) buildWorld(m.snapshot.seed, m.snapshot.buildings, m.snapshot.colonists);
   },
   onTick: (m) => {
     playback.ingest(m);
     worldTimeSec = m.worldTimeSec; // snap to authoritative time (frame loop advances between ticks)
+    hud.setVitals(m.hud);
+    for (const e of m.events) chronicle.add(e);
     for (const d of m.deltas) {
       if (d.id.startsWith("b:")) buildings?.applyDelta(d.id.slice(2), d.changes);
       else if (d.id.startsWith("c:")) colonists?.applyDelta(d.id.slice(2), d.changes);
     }
   },
-  onStatus: (connected) => setStatus(connected ? (planet ? "● live" : "connecting…") : "reconnecting…"),
+  onStatus: (connected) =>
+    hud.setStatus(connected ? (planet ? "● live" : "connecting…") : "reconnecting…"),
 });
 conn.connect();
 
@@ -123,7 +124,8 @@ function frame() {
   post.setFocusDistance(camera.position.distanceTo(rig.target));
   colonists?.update(worldTimeSec);
 
-  const solFraction = ((worldTimeSec % MARS_SOL_SECONDS) + MARS_SOL_SECONDS) % MARS_SOL_SECONDS / MARS_SOL_SECONDS;
+  const solFraction =
+    (((worldTimeSec % MARS_SOL_SECONDS) + MARS_SOL_SECONDS) % MARS_SOL_SECONDS) / MARS_SOL_SECONDS;
   sky.update(solFraction);
   // Keep the shadow frustum over what the camera looks at.
   sky.sun.position.copy(rig.target).addScaledVector(sky.sunDirection, 3000);
@@ -131,44 +133,13 @@ function frame() {
   sky.sun.target.updateMatrixWorld();
 
   post.render();
-  updateClock(solFraction);
+  hud.setClock(worldTimeSec);
   scheduleFrame();
 }
-// rAF pauses in background tabs; fall back to a low-rate timer when hidden so the world
-// still renders (screenshots, tab switches) without wasting GPU at full frame rate.
+// rAF pauses in background tabs; fall back to a low-rate timer when hidden so the world still
+// renders (screenshots, tab switches) without wasting GPU at full frame rate.
 function scheduleFrame() {
   if (document.hidden) setTimeout(frame, 250);
   else requestAnimationFrame(frame);
 }
 scheduleFrame();
-
-// --- HUD helpers ---------------------------------------------------------
-function setStatus(text: string) {
-  const el = document.getElementById("status");
-  if (el) el.textContent = text;
-}
-function updateClock(solFraction: number) {
-  const el = document.getElementById("clock");
-  if (!el) return;
-  const sol = Math.floor(worldTimeSec / MARS_SOL_SECONDS);
-  const hh = String(Math.floor(solFraction * 24)).padStart(2, "0");
-  const mm = String(Math.floor(((solFraction * 24) % 1) * 60)).padStart(2, "0");
-  el.textContent = `Sol ${sol} · ${hh}:${mm}`;
-}
-
-function injectHudStyles() {
-  const s = document.createElement("style");
-  s.textContent = `
-    #app { background:#0b0a0e; overflow:hidden; }
-    canvas { display:block; }
-    #hud { position:absolute; top:16px; left:18px; color:#e9dcc3;
-      font-family: ui-sans-serif, system-ui, sans-serif; text-shadow:0 1px 3px rgba(0,0,0,.6);
-      pointer-events:none; user-select:none; }
-    #title { font-size:20px; letter-spacing:.14em; font-weight:600; }
-    #status { font-size:13px; opacity:.85; margin-top:2px; }
-    #clock { font-size:15px; font-variant-numeric:tabular-nums; margin-top:6px; }
-    #hint { position:fixed; bottom:14px; left:18px; font-size:12px; opacity:.5;
-      color:#e9dcc3; font-family: ui-sans-serif, system-ui, sans-serif; pointer-events:none; }
-  `;
-  document.head.appendChild(s);
-}

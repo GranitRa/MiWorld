@@ -1,6 +1,11 @@
 import type { Server } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
-import { isClientMessage, type ServerMessage, type World } from "@miworld/shared";
+import {
+  isClientMessage,
+  type ChronicleEvent,
+  type ServerMessage,
+  type World,
+} from "@miworld/shared";
 import { buildHello } from "./serializer";
 
 // A pure-viewer never needs to send more than a tiny ping; cap inbound frames hard so a
@@ -24,6 +29,7 @@ export class Broadcaster {
     server: Server,
     private readonly getWorld: () => World,
     private readonly tickWorldSeconds: number,
+    private readonly getChronicle: () => ChronicleEvent[],
   ) {
     this.wss = new WebSocketServer({ server, maxPayload: MAX_INBOUND_BYTES });
 
@@ -32,7 +38,9 @@ export class Broadcaster {
       socket.on("pong", () => {
         socket.isAlive = true;
       });
-      socket.send(JSON.stringify(buildHello(this.getWorld(), this.tickWorldSeconds)));
+      socket.send(
+        JSON.stringify(buildHello(this.getWorld(), this.tickWorldSeconds, this.getChronicle())),
+      );
       socket.on("message", (raw) => {
         let parsed: unknown;
         try {
@@ -71,7 +79,9 @@ export class Broadcaster {
    * rendering against a stale baseline.
    */
   resyncAll(): void {
-    const data = JSON.stringify(buildHello(this.getWorld(), this.tickWorldSeconds));
+    const data = JSON.stringify(
+      buildHello(this.getWorld(), this.tickWorldSeconds, this.getChronicle()),
+    );
     for (const client of this.wss.clients) {
       if (client.readyState === WebSocket.OPEN) client.send(data);
     }

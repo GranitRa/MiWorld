@@ -13,6 +13,7 @@ describe("protocol", () => {
       type: "hello",
       worldTimeSec: 123,
       tickWorldSeconds: TICK_WORLD_SECONDS,
+      chronicle: [],
       snapshot: {
         seed: 1,
         epoch: 1,

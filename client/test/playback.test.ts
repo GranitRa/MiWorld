@@ -3,7 +3,13 @@ import { REAL_MS_PER_TICK, type TickMessage } from "@miworld/shared";
 import { PlaybackBuffer } from "../src/net/playback";
 
 function tick(worldTimeSec: number): TickMessage {
-  return { type: "tick", worldTimeSec, events: [], deltas: [] };
+  return {
+    type: "tick",
+    worldTimeSec,
+    events: [],
+    deltas: [],
+    hud: { pop: 0, dust: 0, stock: {} as never },
+  };
 }
 
 describe("PlaybackBuffer", () => {

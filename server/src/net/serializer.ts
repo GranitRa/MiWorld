@@ -2,16 +2,22 @@ import type {
   EntityDelta,
   ChronicleEvent,
   HelloMessage,
+  HudSummary,
   TickMessage,
   World,
 } from "@miworld/shared";
 
-export function buildHello(world: World, tickWorldSeconds: number): HelloMessage {
+export function buildHello(
+  world: World,
+  tickWorldSeconds: number,
+  chronicle: ChronicleEvent[],
+): HelloMessage {
   return {
     type: "hello",
     snapshot: world,
     worldTimeSec: world.worldTimeSec,
     tickWorldSeconds,
+    chronicle,
   };
 }
 
@@ -19,8 +25,9 @@ export function buildTick(
   worldTimeSec: number,
   events: ChronicleEvent[],
   deltas: EntityDelta[],
+  hud: HudSummary,
 ): TickMessage {
-  return { type: "tick", worldTimeSec, events, deltas };
+  return { type: "tick", worldTimeSec, events, deltas, hud };
 }
 
 /** Merge multiple patches to the same entity within a tick into one delta. */

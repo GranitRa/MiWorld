@@ -89,11 +89,16 @@ export class ColonistLayer {
     }
     if (!e) {
       const obj = this.protos[hash(c.id) % this.protos.length]!.clone(true);
+      obj.userData = { miType: "colonist", miId: c.id };
       this.group.add(obj);
       e = { record: c, obj };
       this.entries.set(c.id, e);
     }
     e.record = c;
+  }
+
+  getRecord(id: string): Colonist | undefined {
+    return this.entries.get(id)?.record;
   }
 
   /** Interpolate every colonist to its position at world time `now` and animate a walk bob. */

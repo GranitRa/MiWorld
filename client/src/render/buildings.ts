@@ -114,6 +114,10 @@ export class BuildingLayer {
     for (const b of buildings) this.set(b);
   }
 
+  getRecord(id: string): Building | undefined {
+    return this.entries.get(id)?.record;
+  }
+
   applyDelta(id: string, changes: Record<string, unknown>): void {
     const cur = this.records.get(id);
     if (cur) {
@@ -135,6 +139,7 @@ export class BuildingLayer {
       const obj = this.makeObject(b);
       obj.position.set(b.pos.x, this.planet.height(b.pos.x, b.pos.z), b.pos.z);
       obj.rotation.y = b.rot;
+      obj.userData = { miType: "building", miId: b.id };
       this.group.add(obj);
       e = { record: { ...b }, obj };
       this.entries.set(b.id, e);

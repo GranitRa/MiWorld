@@ -38,6 +38,26 @@ harmless by design (chronicle has its own serial PK; stream id is never written 
 | WP-6 | Construction & city growth (+ RWP-4 building render) | ✅ done |
 | WP-7 | Colonists — movement, pairing, births, aging (+ RWP-5 astronauts) | ✅ done |
 
+## Phase 3 — a world that tells its story 🚧
+
+| WP | Title | Status |
+|----|-------|--------|
+| WP-8 | HUD + Chronicle + Inspector | ✅ done |
+
+WP-8: protocol gained a per-tick `hud` summary (pop, dust, stockpiles) and a `chronicle`
+backlog in hello (server keeps an in-memory ring of recent events). Client `ui/`:
+- `hud.ts` — top-left strip: title, status, sol clock, and a vitals row (population + power/
+  O₂/water/food mini-meters + dust).
+- `chronicle.ts` — a scrolling colony log (seeded from hello + live tick events), each entry
+  category-coloured and clickable → the camera flies to where it happened.
+- `inspector.ts` — click a colonist or building (raycast, click-vs-drag aware) → a detail card:
+  colonist name/role/sex/age/traits/partner, or building kind/tier/construction %.
+Building/colonist meshes carry their id in `userData` + expose `getRecord`. Verified live:
+HUD vitals render; clicking astronaut "Amara Frost" → "Doctor · ♀ · 42 yr · bold tough";
+clicking a solar array → "Solar array · Printed · operational". (Chronicle populates during
+active events — sparse in a steady-state colony, prominent in early growth / WP-10 crises /
+WP-11 milestones.)
+
 WP-7: `populationSystem` (after construction in tick order) — colonists age, walk between
 modules (a walk leg pos→dest over depart/arrive sim-times, client-interpolated), pair up by
 trait compatibility, have Mars-born children and (rarely, at great age) die. Births are gated

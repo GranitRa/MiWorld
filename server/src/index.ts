@@ -73,6 +73,11 @@ async function main() {
   let lastSnapshotRealMs = Date.now();
   let streamEventId = 0;
   let wasCoarse = false;
+  const recentChronicle: ChronicleEvent[] = []; // in-memory backlog sent to new viewers
+  const remember = (e: ChronicleEvent) => {
+    recentChronicle.push(e);
+    if (recentChronicle.length > 40) recentChronicle.shift();
+  };
   const persist = (): Promise<void> => {
     if (inFlight) return inFlight;
     // Freeze synchronously (before any await) so world and rng can never tear apart.
@@ -92,7 +97,12 @@ async function main() {
   let lastTickRealMs = Date.now();
   const app = express();
   const server = createServer(app);
-  const broadcaster = new Broadcaster(server, () => state.world, TICK_WORLD_SECONDS);
+  const broadcaster = new Broadcaster(
+    server,
+    () => state.world,
+    TICK_WORLD_SECONDS,
+    () => recentChronicle,
+  );
 
   app.get("/healthz", (_req, res) => {
     res.json({
@@ -279,6 +289,7 @@ async function main() {
           cameraHint: e.cameraHint,
         };
         events.push(event);
+        remember(event);
         void insertChronicle(pool, event).catch((err) =>
           console.error("chronicle insert failed", err),
         );
@@ -291,7 +302,16 @@ async function main() {
     stepTick(state.world, ctx);
     lastTickRealMs = Date.now();
     if (!coarse) {
-      broadcaster.broadcast(buildTick(state.world.worldTimeSec, events, coalesceDeltas(deltas)));
+      const w = state.world;
+      const hud = {
+        pop: w.colonists.reduce((n, c) => n + (c.alive ? 1 : 0), 0),
+        dust: Number(w.dust.toFixed(3)),
+        stock: Object.fromEntries(GOODS.map((g) => [g, Math.round(w.treasury[g].amount)])) as Record<
+          (typeof GOODS)[number],
+          number
+        >,
+      };
+      broadcaster.broadcast(buildTick(w.worldTimeSec, events, coalesceDeltas(deltas), hud));
     }
     // Leaving a catch-up burst: viewers missed the suppressed deltas, so push a full
     // resync and record that the relay had lapsed.

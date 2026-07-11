@@ -44,6 +44,34 @@ harmless by design (chronicle has its own serial PK; stream id is never written 
 |----|-------|--------|
 | WP-8 | HUD + Chronicle + Inspector | ✅ done |
 
+## Phase 5 — the documentary lens 🚧
+
+| WP | Title | Status |
+|----|-------|--------|
+| WP-12 | Auto-director camera + Watch mode + LOD bands (+ RWP-6/7) | ✅ done |
+
+WP-12: the world can now watch itself. The camera rig was rebuilt around **goal-based,
+framerate-independent exponential smoothing** (`1 - e^(-λ·dt)`), so manual input (snappy λ) and
+the auto-director (cinematic λ) drive the same rig; `rig.frame(x,z,dist,az,polar,λ)` is the
+director's API and `rig.focusDistance` feeds both tilt-shift and LOD (RWP-6).
+- **`camera/shots.ts`** — a shot grammar: each chronicle category maps to a shot (wide
+  *establish*, *pushIn* for construction/reveals, slow *orbit* for ceremonies/milestones,
+  *track* for Earth ships, *twoShot* for colonists, jittery *handheld* for crises) with a
+  distance ramp, polar, orbit rate, and hold duration.
+- **`camera/director.ts`** — consumes the live beat stream, plays the matching shot, lets a
+  higher-priority beat (a crisis) **cut in** over a gentle one, and falls back to a slow
+  establishing **orbit of the colony centroid** when nothing's happening (never stares at
+  nothing). Any manual input **yields** the camera for ~8 s, then the show resumes.
+- **`render/lod.ts`** — the Watch-mode **bubble**: colonists (the many animated meshes) only
+  render + interpolate within ~2.6 km of the focus, with a hysteresis gap so the edge doesn't
+  flicker; the colony itself always draws (RWP-7).
+- **`ui/watchMode.ts`** — screensaver/documentary view (toggle button or **W**): hides every UI
+  panel, letterboxes the frame, hands the camera to the director, and shows the latest beat as a
+  lower-third caption.
+Verified in-browser (programmatically, hidden-tab): Watch mode enables the director and it moves
+the camera 451 m in 4 s easing through a shot; colonists cull at focus 3194 m and return at 313 m;
+a manual wheel gesture pauses but does not disable the director. Typecheck + client tests green.
+
 ## Phase 4 — a world that endures 🚧
 
 | WP | Title | Status |

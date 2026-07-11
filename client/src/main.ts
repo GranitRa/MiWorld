@@ -22,9 +22,12 @@ import { ColonistLayer } from "./render/colonists";
 import { Sky } from "./render/sky";
 import { PostFX } from "./render/post";
 import { CameraRig } from "./camera/rig";
+import { Director } from "./camera/director";
+import { LodController } from "./render/lod";
 import { Hud } from "./ui/hud";
 import { Chronicle } from "./ui/chronicle";
 import { Inspector } from "./ui/inspector";
+import { WatchMode } from "./ui/watchMode";
 
 // --- DOM / renderer -------------------------------------------------------
 const app = document.getElementById("app")!;
@@ -43,7 +46,16 @@ const camera = new PerspectiveCamera(55, window.innerWidth / window.innerHeight,
 const rig = new CameraRig(camera, renderer.domElement);
 const sky = new Sky(scene);
 const post = new PostFX(renderer, scene, camera);
-const chronicle = new Chronicle(app, (hint) => rig.focus(hint.x, hint.z, 90));
+const director = new Director(rig);
+const lod = new LodController();
+// Manual camera input hands control back to the viewer (and pauses the director).
+rig.onManual = () => director.yieldToManual();
+const watchMode = new WatchMode(app, (on) => (on ? director.enable() : director.disable()));
+const chronicle = new Chronicle(app, (hint) => {
+  watchMode.set(false);
+  director.disable();
+  rig.focus(hint.x, hint.z, 90);
+});
 
 let worldTimeSec = 0;
 let planet: Planet | null = null;
@@ -75,6 +87,7 @@ function buildWorld(seed: number, initialBuildings: Building[], initialColonists
       buildings = new BuildingLayer(p);
       scene.add(buildings.group);
       buildings.syncAll(initialBuildings);
+      director.setColonyCenter(buildings.center() ?? p.landingSite);
       colonists = new ColonistLayer(p);
       scene.add(colonists.group);
       colonists.syncAll(initialColonists);
@@ -100,7 +113,12 @@ const conn = new Connection(defaultWsUrl(), {
     playback.ingest(m);
     worldTimeSec = m.worldTimeSec; // snap to authoritative time (frame loop advances between ticks)
     hud.setVitals(m.hud);
-    for (const e of m.events) chronicle.add(e);
+    for (const e of m.events) {
+      chronicle.add(e);
+      director.push(e);
+      if (e.cameraHint) watchMode.setCaption(e);
+    }
+    if (buildings) director.setColonyCenter(buildings.center() ?? planet!.landingSite);
     for (const d of m.deltas) {
       if (d.id.startsWith("b:")) buildings?.applyDelta(d.id.slice(2), d.changes);
       else if (d.id.startsWith("c:")) colonists?.applyDelta(d.id.slice(2), d.changes);
@@ -118,11 +136,15 @@ function frame() {
   const nowMs = performance.now();
   const dtMs = Math.min(250, nowMs - lastFrameMs);
   lastFrameMs = nowMs;
-  worldTimeSec += (dtMs / 1000) * WORLD_SECONDS_PER_REAL_SECOND;
+  const dtSec = dtMs / 1000;
+  worldTimeSec += dtSec * WORLD_SECONDS_PER_REAL_SECOND;
 
-  rig.update();
-  post.setFocusDistance(camera.position.distanceTo(rig.target));
-  colonists?.update(worldTimeSec);
+  director.update(dtSec); // sets the rig's goal pose; the rig smooths toward it
+  rig.update(dtSec);
+  post.setFocusDistance(rig.focusDistance);
+  // Bubble LOD: only draw + interpolate colonists when the camera is close enough to see them.
+  const inBubble = lod.update(rig.focusDistance, colonists?.group ?? null);
+  if (inBubble) colonists?.update(worldTimeSec);
 
   const solFraction =
     (((worldTimeSec % MARS_SOL_SECONDS) + MARS_SOL_SECONDS) % MARS_SOL_SECONDS) / MARS_SOL_SECONDS;

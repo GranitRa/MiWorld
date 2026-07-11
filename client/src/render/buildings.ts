@@ -118,6 +118,20 @@ export class BuildingLayer {
     return this.entries.get(id)?.record;
   }
 
+  /** Average position of standing buildings — the colony's centre, for the auto-director. */
+  center(): { x: number; z: number } | null {
+    let x = 0;
+    let z = 0;
+    let n = 0;
+    for (const b of this.records.values()) {
+      if (b.tier === "ruin") continue;
+      x += b.pos.x;
+      z += b.pos.z;
+      n++;
+    }
+    return n > 0 ? { x: x / n, z: z / n } : null;
+  }
+
   applyDelta(id: string, changes: Record<string, unknown>): void {
     const cur = this.records.get(id);
     if (cur) {

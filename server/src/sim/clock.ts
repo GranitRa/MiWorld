@@ -50,8 +50,10 @@ export function planBoot(
   if (desiredWorldSec > maxTarget) {
     target = maxTarget;
     skippedWorldSec = desiredWorldSec - maxTarget;
-    // Re-anchor founding so that "now" maps to the capped target going forward.
-    foundedRealMs = nowMs - (target / WORLD_SECONDS_PER_REAL_SECOND) * 1000;
+    // Re-anchor founding so that "now" maps to the capped target going forward. Round to a
+    // whole millisecond — foundedRealMs is persisted to a bigint column, and sub-ms precision
+    // is meaningless for a sim that ticks every ~8.5 s.
+    foundedRealMs = Math.round(nowMs - (target / WORLD_SECONDS_PER_REAL_SECOND) * 1000);
   }
 
   // Never go backwards (clock skew / restored-from-old-snapshot safety).

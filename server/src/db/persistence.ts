@@ -105,8 +105,10 @@ export function freezeSnapshot(
   return {
     seed: world.seed,
     epoch: world.epoch,
-    worldTimeSec: world.worldTimeSec,
-    foundedRealMs,
+    // worldTimeSec and foundedRealMs are bigint columns — round defensively so a fractional
+    // value can never reach Postgres (which rejects it with a 22P02 boot failure).
+    worldTimeSec: Math.round(world.worldTimeSec),
+    foundedRealMs: Math.round(foundedRealMs),
     status: world.status,
     stateJson: JSON.stringify(blob),
   };

@@ -50,6 +50,9 @@ describe("boot catch-up (planBoot)", () => {
     const plan = planBoot({ foundedRealMs: founded, worldTimeSec: 0 }, now, CATCHUP_CAP_WORLD_SEC);
     expect(plan.startWorldTimeSec).toBeLessThanOrEqual(CATCHUP_CAP_WORLD_SEC + TICK_WORLD_SECONDS);
     expect(plan.skippedWorldSec).toBeGreaterThan(0);
+    // The re-anchored founding is persisted to a bigint column — it MUST be a whole integer,
+    // or the first snapshot save fails with a 22P02 boot error (regression guard).
+    expect(Number.isInteger(plan.foundedRealMs)).toBe(true);
     // Re-anchored so ongoing time tracks "now" from the capped target.
     const desiredFromReanchor =
       ((now - plan.foundedRealMs) / 1000) * WORLD_SECONDS_PER_REAL_SECOND;

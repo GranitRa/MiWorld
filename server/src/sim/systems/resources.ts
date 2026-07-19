@@ -10,6 +10,7 @@ import {
   type World,
 } from "@miworld/shared";
 import type { System } from "../engine";
+import { disabledBuildingIds } from "./crises";
 
 const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
@@ -40,7 +41,11 @@ export const resourcesSystem: System = (world, dt, ctx) => {
   const sunFactor = clamp(-Math.cos(2 * Math.PI * solFraction), 0, 1);
   const solarEff = sunFactor * (1 - world.dust);
 
-  const complete = world.buildings.filter((b) => b.progress >= 1 && b.tier !== "ruin");
+  // A building knocked offline by an equipment failure (WP-10) produces/consumes nothing.
+  const offline = disabledBuildingIds(world);
+  const complete = world.buildings.filter(
+    (b) => b.progress >= 1 && b.tier !== "ruin" && !offline.has(b.id),
+  );
 
   // --- pass 1: power balance → brownout ratio ---
   let solarPerSol = 0;

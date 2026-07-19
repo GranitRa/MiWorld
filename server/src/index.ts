@@ -36,6 +36,7 @@ import { registerSystems } from "./sim/systems/register";
 import { fastForwardTo, stepTick, type EmittedEvent, type SimContext } from "./sim/engine";
 import { Broadcaster } from "./net/wsServer";
 import { buildTick, coalesceDeltas } from "./net/serializer";
+import { crisisLabel } from "./sim/systems/crises";
 
 const PORT = Number(process.env.PORT ?? 8080);
 const here = dirname(fileURLToPath(import.meta.url));
@@ -120,6 +121,7 @@ async function main() {
       buildings: state.world.buildings.length,
       colonists: state.world.colonists.filter((c) => c.alive).length,
       shortages: state.world.shortages,
+      crisis: crisisLabel(state.world),
       stock: Object.fromEntries(
         GOODS.map((g) => [g, Math.round(state.world.treasury[g].amount)]),
       ),
@@ -325,6 +327,7 @@ async function main() {
           (typeof GOODS)[number],
           number
         >,
+        crisis: crisisLabel(w),
       };
       broadcaster.broadcast(buildTick(w.worldTimeSec, events, coalesceDeltas(deltas), hud));
     }

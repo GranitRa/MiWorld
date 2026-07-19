@@ -30,6 +30,8 @@ describe("protocol", () => {
         flights: [],
         lastFlightSec: 0,
         fallenSec: null,
+        crises: [],
+        lastCrisisEndSec: 0,
       },
     };
     const parsed = JSON.parse(JSON.stringify(msg)) as ServerMessage;

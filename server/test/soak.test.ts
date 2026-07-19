@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { MARS_SOL_SECONDS, TICK_WORLD_SECONDS, generatePlanet } from "@miworld/shared";
 import { createWorld, seedColony } from "../src/sim/world";
 import { environmentSystem } from "../src/sim/systems/environment";
+import { crisesSystem } from "../src/sim/systems/crises";
 import { resourcesSystem } from "../src/sim/systems/resources";
 import { constructionSystem } from "../src/sim/systems/construction";
 import { populationSystem } from "../src/sim/systems/population";
@@ -24,6 +25,7 @@ function soak(seed: number, sols: number) {
   for (let i = 0; i < ticks; i++) {
     world.worldTimeSec += TICK_WORLD_SECONDS;
     environmentSystem(world, TICK_WORLD_SECONDS, ctx);
+    crisesSystem(world, TICK_WORLD_SECONDS, ctx);
     resourcesSystem(world, TICK_WORLD_SECONDS, ctx);
     constructionSystem(world, TICK_WORLD_SECONDS, ctx);
     populationSystem(world, TICK_WORLD_SECONDS, ctx);

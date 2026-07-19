@@ -48,6 +48,8 @@ export function createWorld(seed: number): World {
     flights: [],
     lastFlightSec: 0,
     fallenSec: null,
+    crises: [],
+    lastCrisisEndSec: 0,
   };
 }
 
@@ -144,6 +146,8 @@ export function reseedColony(world: World, rng: RngGateway): void {
   world.shortages = {};
   world.flights = [];
   world.dust = 0.12;
+  world.crises = [];
+  world.lastCrisisEndSec = world.worldTimeSec; // a fresh epoch starts calm
 }
 
 /**
@@ -161,6 +165,23 @@ export function normalizeWorld(world: World): World {
   if (!world.flights) world.flights = [];
   if (typeof world.lastFlightSec !== "number") world.lastFlightSec = 0;
   if (world.fallenSec === undefined) world.fallenSec = null;
+  // Drop any crisis with corrupt fields — a non-finite stageEndsSec would never advance,
+  // permanently blocking new crises and (for a storm) NaN-poisoning dust (Fable WP-10 finding).
+  const KINDS = new Set(["dust_storm", "equipment_failure", "solar_storm"]);
+  const STAGES = new Set(["warning", "onset", "peak", "recovery"]);
+  world.crises = Array.isArray(world.crises)
+    ? world.crises.filter(
+        (c) =>
+          c &&
+          KINDS.has(c.kind) &&
+          STAGES.has(c.stage) &&
+          Number.isFinite(c.stageStartSec) &&
+          Number.isFinite(c.stageEndsSec) &&
+          Number.isFinite(c.severity) &&
+          Number.isFinite(c.startDust),
+      )
+    : [];
+  if (typeof world.lastCrisisEndSec !== "number") world.lastCrisisEndSec = world.worldTimeSec ?? 0;
   // A fallen world with no fall time can never re-seed — repair it so the reseed timer can fire
   // (Fable F2: unkillability hole for a snapshot-loss rebuild or legacy fallen snapshot).
   if (world.status === "fallen" && world.fallenSec == null) world.fallenSec = world.worldTimeSec;

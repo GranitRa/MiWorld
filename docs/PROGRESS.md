@@ -48,7 +48,25 @@ harmless by design (chronicle has its own serial PK; stream id is never written 
 
 | WP | Title | Status |
 |----|-------|--------|
+| WP-10 | Threats & crises | ✅ done |
 | WP-12 | Auto-director camera + Watch mode + LOD bands (+ RWP-6/7) | ✅ done |
+
+WP-10: the colony now faces **watchable threats** — `crisesSystem` (runs after environment,
+before resources, so a storm dims the panels the same tick). Each crisis is a **warning → onset →
+peak → recovery** state machine emitting a beat at every stage, so the causal chain reads as a
+story (forecast → panels dim → rationing → the skies clear). Three kinds:
+- **dust_storm** — commandeers atmospheric dust on a curve (peak 0.7–0.9); solar collapses →
+  real power/life-support pressure. Environment yields dust to an active storm.
+- **equipment_failure** — knocks a producer offline for the crisis (resources skips it); repair
+  draws down spares.
+- **solar_storm** — a radiation lockdown that may claim a single colonist on EVA (rare).
+A **drama thermostat** keeps it hopeful: at most **one** crisis at a time, a mandatory calm window
+after each, and it never piles onto an existing life-support shortage or a fragile colony (WP-9's
+Earth rescue + reseed stay the real safety net). New `World.crises` / `lastCrisisEndSec`; the tick
+HUD carries a `crisis` label → a pulsing banner in the client. Verified: `crises.test.ts` (full
+ordered dust-storm arc with dust rise+clear; thermostat never overlaps; **pop > 0.8× start over
+200 sols with crises firing**); the soak now runs crises in the full loop and still holds. Live:
+boots clean, `/healthz.crisis`, banner wiring confirmed in-browser.
 
 WP-12: the world can now watch itself. The camera rig was rebuilt around **goal-based,
 framerate-independent exponential smoothing** (`1 - e^(-λ·dt)`), so manual input (snappy λ) and

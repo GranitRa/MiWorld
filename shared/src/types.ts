@@ -77,6 +77,28 @@ export interface ChronicleEvent {
 
 export type WorldStatus = "alive" | "fallen";
 
+export type CrisisKind = "dust_storm" | "equipment_failure" | "solar_storm";
+
+/** A crisis runs a warning → onset → peak → recovery state machine, emitting a beat at each
+ * stage so the causal chain (forecast → panels dim → rationing → resolution) is watchable. */
+export type CrisisStage = "warning" | "onset" | "peak" | "recovery";
+
+export interface Crisis {
+  id: string;
+  kind: CrisisKind;
+  stage: CrisisStage;
+  /** Sim-time the current stage began and is scheduled to end (drives progress + transitions). */
+  stageStartSec: number;
+  stageEndsSec: number;
+  /** 0..1 intensity: peak dust for a storm, casualty risk for a solar storm. */
+  severity: number;
+  /** Atmospheric dust at spawn — a dust storm eases its warning haze up from here, not from a
+   * fixed calm value, so it never snaps the sky downward on an already-hazy sol. */
+  startDust: number;
+  /** Building knocked offline (equipment_failure), else null. */
+  targetId: string | null;
+}
+
 export type FlightKind = "supply" | "rescue" | "colonists";
 
 /** A ship in transit from Earth; delivers feedstock + immigrants on arrival. */
@@ -112,4 +134,8 @@ export interface World {
   lastFlightSec: number;
   /** Sim-time the colony collapsed to zero, or null; drives the reseed timer. */
   fallenSec: number | null;
+  /** Active threats (dust storms, failures, …) running their state machines (WP-10). */
+  crises: Crisis[];
+  /** Sim-time the last crisis ended; the drama thermostat enforces a calm window after it. */
+  lastCrisisEndSec: number;
 }

@@ -45,6 +45,11 @@ export const earthSystem: System = (world, _dt, ctx) => {
   if (world.status === "alive" && alive === 0) {
     world.status = "fallen";
     world.fallenSec = now;
+    // The fall supersedes any in-progress crisis — clear it so dust/HUD don't stay frozen at
+    // "storm · peak" over the ruins during the reseed wait (Fable WP-10 finding).
+    world.crises = [];
+    world.lastCrisisEndSec = now;
+    world.dust = 0.12;
     for (const b of world.buildings) {
       if (b.tier !== "ruin") {
         b.tier = "ruin";

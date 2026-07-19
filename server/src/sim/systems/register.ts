@@ -1,5 +1,6 @@
 import { registerSystem } from "../engine";
 import { environmentSystem } from "./environment";
+import { crisesSystem } from "./crises";
 import { resourcesSystem } from "./resources";
 import { constructionSystem } from "./construction";
 import { populationSystem } from "./population";
@@ -12,9 +13,10 @@ export function registerSystems(): void {
   if (registered) return;
   registered = true;
   registerSystem(environmentSystem);
+  registerSystem(crisesSystem); // after environment (owns storm dust), before resources
   registerSystem(resourcesSystem);
   registerSystem(constructionSystem);
   registerSystem(populationSystem);
   registerSystem(earthSystem);
-  // WP-10+ will append: crises, milestones.
+  // WP-11 will append: milestones.
 }

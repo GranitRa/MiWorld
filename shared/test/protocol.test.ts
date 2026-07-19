@@ -32,6 +32,8 @@ describe("protocol", () => {
         fallenSec: null,
         crises: [],
         lastCrisisEndSec: 0,
+        milestones: [],
+        epochStartSec: 0,
       },
     };
     const parsed = JSON.parse(JSON.stringify(msg)) as ServerMessage;

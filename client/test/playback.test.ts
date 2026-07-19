@@ -8,7 +8,7 @@ function tick(worldTimeSec: number): TickMessage {
     worldTimeSec,
     events: [],
     deltas: [],
-    hud: { pop: 0, dust: 0, stock: {} as never, crisis: null },
+    hud: { pop: 0, dust: 0, stock: {} as never, crisis: null, name: null },
   };
 }
 

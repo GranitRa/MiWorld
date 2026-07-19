@@ -5,6 +5,7 @@ import { resourcesSystem } from "./resources";
 import { constructionSystem } from "./construction";
 import { populationSystem } from "./population";
 import { earthSystem } from "./earth";
+import { milestonesSystem } from "./milestones";
 
 // Register simulation systems in fixed tick order. Called once at startup, BEFORE boot, so
 // the boot catch-up fast-forward runs the economy too.
@@ -18,5 +19,5 @@ export function registerSystems(): void {
   registerSystem(constructionSystem);
   registerSystem(populationSystem);
   registerSystem(earthSystem);
-  // WP-11 will append: milestones.
+  registerSystem(milestonesSystem); // last: condition-watcher, right before the bus flush
 }

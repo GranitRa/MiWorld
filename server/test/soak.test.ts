@@ -7,6 +7,7 @@ import { resourcesSystem } from "../src/sim/systems/resources";
 import { constructionSystem } from "../src/sim/systems/construction";
 import { populationSystem } from "../src/sim/systems/population";
 import { earthSystem } from "../src/sim/systems/earth";
+import { milestonesSystem } from "../src/sim/systems/milestones";
 import { RngGateway } from "../src/sim/rng";
 import type { SimContext } from "../src/sim/engine";
 
@@ -30,6 +31,7 @@ function soak(seed: number, sols: number) {
     constructionSystem(world, TICK_WORLD_SECONDS, ctx);
     populationSystem(world, TICK_WORLD_SECONDS, ctx);
     earthSystem(world, TICK_WORLD_SECONDS, ctx);
+    milestonesSystem(world, TICK_WORLD_SECONDS, ctx);
     if (i >= tailStart) {
       tailTicks++;
       if ((world.shortages.power ?? 0) >= 0.5) powerShortTicks++;

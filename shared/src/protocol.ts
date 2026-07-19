@@ -20,6 +20,8 @@ export interface HudSummary {
   stock: Record<Good, number>;
   /** Human label of the most severe active crisis (e.g. "Dust storm · peak"), or null. */
   crisis: string | null;
+  /** The settlement's chosen name once the naming ceremony has run (WP-11), else null. */
+  name: string | null;
 }
 
 /** Sent once on connect: the full current world snapshot + recent chronicle backlog. */

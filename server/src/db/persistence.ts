@@ -115,9 +115,11 @@ export function freezeSnapshot(
 }
 
 /**
- * Delete chronicle rows strictly AFTER a given world time (for the current epoch). Used
- * on crash recovery to erase the "dead timeline" — events that live ticks wrote past the
- * last snapshot but which the coarse fast-forward will re-derive differently.
+ * Delete chronicle rows strictly AFTER a given (epoch, world time). Used on crash recovery to
+ * erase the "dead timeline" — events that live ticks wrote past the last snapshot but which the
+ * coarse fast-forward will re-derive. Must also drop rows from any LATER epoch: a fast-forward
+ * that crossed a collapse+reseed wrote future-epoch rows that a re-run would duplicate otherwise
+ * (Fable WP-11 MEDIUM-2).
  */
 export async function deleteChronicleAfter(
   pool: pg.Pool,
@@ -125,7 +127,7 @@ export async function deleteChronicleAfter(
   worldTimeSec: number,
 ): Promise<void> {
   await pool.query(
-    "DELETE FROM chronicle WHERE epoch = $1 AND world_time_sec > $2",
+    "DELETE FROM chronicle WHERE epoch > $1 OR (epoch = $1 AND world_time_sec > $2)",
     [epoch, worldTimeSec],
   );
 }

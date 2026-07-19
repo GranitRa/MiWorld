@@ -10,6 +10,7 @@ const VITALS: { key: keyof HudSummary["stock"]; label: string }[] = [
 ];
 
 export class Hud {
+  private readonly titleEl: HTMLElement;
   private readonly statusEl: HTMLElement;
   private readonly clockEl: HTMLElement;
   private readonly vitalsEl: HTMLElement;
@@ -26,6 +27,7 @@ export class Hud {
       </div>
       <div id="hint">drag orbit · shift-drag pan · scroll zoom · click a colonist</div>
     `;
+    this.titleEl = root.querySelector("#title")!;
     this.statusEl = root.querySelector("#status")!;
     this.clockEl = root.querySelector("#clock")!;
     this.vitalsEl = root.querySelector("#vitals")!;
@@ -46,6 +48,8 @@ export class Hud {
   }
 
   setVitals(h: HudSummary): void {
+    // Once the colony names itself (WP-11), the HUD adopts that name.
+    this.titleEl.textContent = h.name ?? "MiWorld";
     const meters = VITALS.map(({ key, label }) => {
       const v = h.stock[key] ?? 0;
       const frac = Math.max(0, Math.min(1, v / (GOOD_CAP[key] || 1)));

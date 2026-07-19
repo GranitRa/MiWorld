@@ -138,4 +138,8 @@ export interface World {
   crises: Crisis[];
   /** Sim-time the last crisis ended; the drama thermostat enforces a calm window after it. */
   lastCrisisEndSec: number;
+  /** Ids of milestones already fired this epoch (reset on reseed) — each fires once (WP-11). */
+  milestones: string[];
+  /** Sim-time the current epoch began; time-based milestones measure from here. */
+  epochStartSec: number;
 }

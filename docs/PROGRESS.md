@@ -49,7 +49,28 @@ harmless by design (chronicle has its own serial PK; stream id is never written 
 | WP | Title | Status |
 |----|-------|--------|
 | WP-10 | Threats & crises | ✅ done |
+| WP-11 | Milestone / "wow" engine | ✅ done |
 | WP-12 | Auto-director camera + Watch mode + LOD bands (+ RWP-6/7) | ✅ done |
+
+WP-11: the world now marks its own history. `milestonesSystem` (runs LAST each tick, a
+condition-watcher before the bus flush) holds a catalog of authored templates, each with a
+predicate over world state that fires **once per epoch** as a **max-priority (10) `milestone`
+beat**, each with **3 tone variants** so a repeated life event never reads as the same string:
+- **first_child** (first Mars-born), **first_dome**, **naming_ceremony** (pop ≥ 24 + a dome →
+  the colony votes itself a name, written to `world.settlementName`), **first_100_sols**,
+  **growing_strong** (pop ≥ 50), **terraforming_experiment** (science ≥ 80%), **monument**
+  (prosperity ≥ thresholds → diverts feedstock and **erects a `monument` building** — a permanent
+  artifact in the world).
+New `World.milestones` (fired ids, reset per epoch) + `epochStartSec`; the naming ceremony's name
+streams via the tick HUD (`HudSummary.name`) and the client **adopts it as the HUD title**. On
+reseed a fresh epoch clears milestones + name and earns them anew (ruins keep the old epoch's).
+Verified: `milestones.test.ts` (every template fires exactly once per epoch; naming persists a
+`/^[A-Z][a-z]+ [A-Z][a-z]+$/` name + leaves a monument; reseed resets and re-arms); soak runs
+milestones in the full loop and still holds. **Live**: the persisted colony named itself
+**"Elysium Reach"** (HUD title updated) and raised a monument (buildings 26 → 27) on restart.
+Follow-up (pre-existing, not WP-11): the in-memory chronicle ring isn't seeded from the DB on
+boot, so beats that fire during boot catch-up (incl. milestones) are persisted but absent from the
+panel until fresh live beats arrive — seed the ring from the chronicle table on boot.
 
 WP-10: the colony now faces **watchable threats** — `crisesSystem` (runs after environment,
 before resources, so a storm dims the panels the same tick). Each crisis is a **warning → onset →

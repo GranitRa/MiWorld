@@ -328,6 +328,7 @@ async function main() {
           number
         >,
         crisis: crisisLabel(w),
+        name: w.settlementName,
       };
       broadcaster.broadcast(buildTick(w.worldTimeSec, events, coalesceDeltas(deltas), hud));
     }

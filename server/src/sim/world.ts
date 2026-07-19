@@ -50,6 +50,8 @@ export function createWorld(seed: number): World {
     fallenSec: null,
     crises: [],
     lastCrisisEndSec: 0,
+    milestones: [],
+    epochStartSec: 0,
   };
 }
 
@@ -148,6 +150,10 @@ export function reseedColony(world: World, rng: RngGateway): void {
   world.dust = 0.12;
   world.crises = [];
   world.lastCrisisEndSec = world.worldTimeSec; // a fresh epoch starts calm
+  // A new expedition earns its own milestones + name; the previous epoch's stand in the ruins.
+  world.milestones = [];
+  world.epochStartSec = world.worldTimeSec;
+  world.settlementName = null;
 }
 
 /**
@@ -182,6 +188,8 @@ export function normalizeWorld(world: World): World {
       )
     : [];
   if (typeof world.lastCrisisEndSec !== "number") world.lastCrisisEndSec = world.worldTimeSec ?? 0;
+  if (!Array.isArray(world.milestones)) world.milestones = [];
+  if (typeof world.epochStartSec !== "number") world.epochStartSec = world.worldTimeSec ?? 0;
   // A fallen world with no fall time can never re-seed — repair it so the reseed timer can fire
   // (Fable F2: unkillability hole for a snapshot-loss rebuild or legacy fallen snapshot).
   if (world.status === "fallen" && world.fallenSec == null) world.fallenSec = world.worldTimeSec;

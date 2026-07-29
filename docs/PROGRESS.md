@@ -51,6 +51,27 @@ harmless by design (chronicle has its own serial PK; stream id is never written 
 | WP-10 | Threats & crises | ✅ done |
 | WP-11 | Milestone / "wow" engine | ✅ done |
 | WP-12 | Auto-director camera + Watch mode + LOD bands (+ RWP-6/7) | ✅ done |
+| WP-13 | Day/night + seasonal palette, overlays, polish | ✅ done |
+
+WP-13: the documentary polish pass (client-only).
+- **Lighting** (`render/sky.ts`): Mars-correct **twilight** — a cool blue cast around the low sun
+  at dawn/dusk (fine dust scatters red forward, so the sky near the sun goes blue); **storm
+  darkening** — `sky.update(solFraction, dust)` dims the day, bleaches the sky toward the dust
+  colour, thickens the fog, and veils the stars as dust climbs, so a noon dust storm reads as an
+  oppressive brown gloom. Exposes `nightFactor`.
+- **Night city glow** (`render/buildings.ts`): lit kinds (habitat/dome/greenhouse) glow warmly
+  after dark, brighter as the colony grows (`setNightGlow(nightFactor · f(pop))`), via
+  **per-instance** emissive materials so a ruin or an unfinished shell never lights up.
+- **Overlays** (`ui/overlays.ts`): a toggle bar with three read-only lenses — **⚡ Grid** (lines
+  from each producer to the hub, coloured by output), **🏗 Building** (beacons over in-progress
+  builds), **👥 People** (glowing density dots over colonists). Hidden in Watch mode.
+Fable review (standard) → GO; folded in: ruins/shells never glow (per-instance materials), Watch
+mode hides the overlay *layer* not just the bar, the people overlay stays live outside the LOD
+bubble, and a NaN-dust guard. Typecheck + client tests + build green; the overlay bar + all three
+toggles verified building geometry from real data with no errors.
+**Note:** a full-scene visual re-verify (twilight/night-glow screenshots) is pending — the Railway
+Postgres public proxy is currently refusing connections (`ECONNREFUSED`, external/transient), so a
+live world can't boot right now; the server binds HTTP then exits at `acquireWorldLock`.
 
 WP-11: the world now marks its own history. `milestonesSystem` (runs LAST each tick, a
 condition-watcher before the bus flush) holds a catalog of authored templates, each with a

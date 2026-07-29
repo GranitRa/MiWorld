@@ -28,6 +28,7 @@ import { Hud } from "./ui/hud";
 import { Chronicle } from "./ui/chronicle";
 import { Inspector } from "./ui/inspector";
 import { WatchMode } from "./ui/watchMode";
+import { Overlays } from "./ui/overlays";
 
 // --- DOM / renderer -------------------------------------------------------
 const app = document.getElementById("app")!;
@@ -50,7 +51,11 @@ const director = new Director(rig);
 const lod = new LodController();
 // Manual camera input hands control back to the viewer (and pauses the director).
 rig.onManual = () => director.yieldToManual();
-const watchMode = new WatchMode(app, (on) => (on ? director.enable() : director.disable()));
+const watchMode = new WatchMode(app, (on) => {
+  if (on) director.enable();
+  else director.disable();
+  overlays?.setHidden(on); // Watch mode hides the diagnostic overlays too
+});
 const chronicle = new Chronicle(app, (hint) => {
   watchMode.set(false);
   director.disable();
@@ -61,6 +66,9 @@ let worldTimeSec = 0;
 let planet: Planet | null = null;
 let buildings: BuildingLayer | null = null;
 let colonists: ColonistLayer | null = null;
+let overlays: Overlays | null = null;
+let dust = 0.12; // latest atmospheric dust (drives storm darkening + fog)
+let pop = 0; // latest population (scales the night-city glow)
 let lastFrameMs = performance.now();
 const playback = new PlaybackBuffer();
 
@@ -92,6 +100,7 @@ function buildWorld(seed: number, initialBuildings: Building[], initialColonists
       scene.add(colonists.group);
       colonists.syncAll(initialColonists);
       new Inspector(app, camera, renderer.domElement, buildings, colonists);
+      overlays = new Overlays(scene, app, buildings, colonists, () => p.landingSite, (x, z) => p.height(x, z));
       rig.setHeightSampler((x, z) => p.height(x, z));
       rig.focus(p.landingSite.x, p.landingSite.z, 60);
       hud.setStatus("● live");
@@ -112,6 +121,8 @@ const conn = new Connection(defaultWsUrl(), {
   onTick: (m) => {
     playback.ingest(m);
     worldTimeSec = m.worldTimeSec; // snap to authoritative time (frame loop advances between ticks)
+    dust = m.hud.dust;
+    pop = m.hud.pop;
     hud.setVitals(m.hud);
     for (const e of m.events) {
       chronicle.add(e);
@@ -144,11 +155,15 @@ function frame() {
   post.setFocusDistance(rig.focusDistance);
   // Bubble LOD: only draw + interpolate colonists when the camera is close enough to see them.
   const inBubble = lod.update(rig.focusDistance, colonists?.group ?? null);
-  if (inBubble) colonists?.update(worldTimeSec);
+  // Keep colonist positions fresh inside the bubble, or when the people overlay needs them.
+  if (inBubble || overlays?.peopleActive) colonists?.update(worldTimeSec);
+  overlays?.update(dtSec);
 
   const solFraction =
     (((worldTimeSec % MARS_SOL_SECONDS) + MARS_SOL_SECONDS) % MARS_SOL_SECONDS) / MARS_SOL_SECONDS;
-  sky.update(solFraction);
+  sky.update(solFraction, dust);
+  // The settlement glows warmly after dark, brighter as the colony grows.
+  buildings?.setNightGlow(sky.nightFactor * Math.min(1, 0.35 + pop / 80));
   // Keep the shadow frustum over what the camera looks at.
   sky.sun.position.copy(rig.target).addScaledVector(sky.sunDirection, 3000);
   sky.sun.target.position.copy(rig.target);

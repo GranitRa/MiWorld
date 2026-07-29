@@ -101,6 +101,11 @@ export class ColonistLayer {
     return this.entries.get(id)?.record;
   }
 
+  /** Current world-space positions of every rendered colonist (for the population overlay). */
+  positions(): Vector3[] {
+    return [...this.entries.values()].map((e) => e.obj.position.clone());
+  }
+
   /** Interpolate every colonist to its position at world time `now` and animate a walk bob. */
   update(now: number): void {
     for (const e of this.entries.values()) {

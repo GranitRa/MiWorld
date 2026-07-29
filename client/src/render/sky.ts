@@ -20,6 +20,7 @@ import {
   SKY_DAY_TOP,
   SKY_NIGHT_HORIZON,
   SKY_NIGHT_TOP,
+  SKY_TWILIGHT,
   SUN_COLOR,
 } from "./palette";
 
@@ -37,6 +38,13 @@ export class Sky {
   private readonly stars: Points;
   private readonly uniforms;
   private readonly fog: FogExp2;
+  /** Daylight strength: 1 at noon → 0 at deep night. `nightFactor` is its complement. */
+  private dayFactor = 1;
+  private dust = 0.12;
+
+  get nightFactor(): number {
+    return 1 - this.dayFactor;
+  }
 
   constructor(scene: Scene) {
     this.uniforms = {
@@ -45,6 +53,8 @@ export class Sky {
       sunDir: { value: new Vector3(0, 1, 0) },
       sunColor: { value: SUN_COLOR.clone() },
       sunUp: { value: 1 },
+      twilight: { value: 0 },
+      twilightColor: { value: SKY_TWILIGHT.clone() },
     };
 
     this.dome = new Mesh(
@@ -64,11 +74,14 @@ export class Sky {
           varying vec3 vDir;
           uniform vec3 topColor; uniform vec3 horizonColor;
           uniform vec3 sunDir; uniform vec3 sunColor; uniform float sunUp;
+          uniform float twilight; uniform vec3 twilightColor;
           void main() {
             vec3 d = normalize(vDir);
             float t = clamp(d.y * 0.5 + 0.5, 0.0, 1.0);
             vec3 col = mix(horizonColor, topColor, pow(t, 0.55));
             float s = max(dot(d, normalize(sunDir)), 0.0);
+            // Mars twilight: a cool blue cast in the sky around the low sun at dawn/dusk.
+            col = mix(col, twilightColor, pow(s, 3.0) * twilight * 0.6);
             col += sunColor * pow(s, 220.0) * 1.6;              // sun disc
             col += sunColor * pow(s, 6.0) * 0.18 * sunUp;        // halo, fades at night
             gl_FragColor = vec4(col, 1.0);
@@ -98,12 +111,21 @@ export class Sky {
     this.update(0.5);
   }
 
-  /** solFraction in [0,1): 0 = midnight, 0.5 = noon. */
-  update(solFraction: number): void {
+  /** solFraction in [0,1): 0 = midnight, 0.5 = noon. `dust` (0..1) darkens the day and thickens
+   * the haze — a storm at noon should read as an oppressive brown gloom, not a clear sky. */
+  update(solFraction: number, dust: number = this.dust): void {
+    if (!Number.isFinite(dust)) dust = this.dust; // never let a bad value NaN-blacken the frame
+    this.dust = dust;
     const phase = solFraction * Math.PI * 2;
     const dir = new Vector3(Math.sin(phase), -Math.cos(phase), 0.28).normalize();
     this.sunDirection.copy(dir);
-    const day = clamp01(dir.y * 1.25 + 0.12);
+    const rawDay = clamp01(dir.y * 1.25 + 0.12);
+    // Storm darkening: high dust dims the sun and mutes the sky toward the dust colour.
+    const dustDark = clamp01((dust - 0.3) / 0.6);
+    const day = rawDay * (1 - 0.55 * dustDark);
+    this.dayFactor = day;
+    // Twilight peaks when the sun sits near the horizon (dawn/dusk), and only when it's up-ish.
+    const twilight = clamp01(1 - Math.abs(dir.y) * 4) * clamp01(dir.y * 4 + 0.6) * (1 - dustDark);
 
     // A default position; the app repositions the sun each frame to track the view so the
     // shadow frustum stays over what the camera is looking at.
@@ -113,14 +135,21 @@ export class Sky {
 
     this.uniforms.sunDir.value.copy(dir);
     this.uniforms.sunUp.value = day;
-    this.uniforms.topColor.value.copy(SKY_NIGHT_TOP).lerp(SKY_DAY_TOP, day);
-    this.uniforms.horizonColor.value.copy(SKY_NIGHT_HORIZON).lerp(SKY_DAY_HORIZON, day);
+    this.uniforms.twilight.value = twilight;
+    const top = this.uniforms.topColor.value.copy(SKY_NIGHT_TOP).lerp(SKY_DAY_TOP, rawDay);
+    const horizon = this.uniforms.horizonColor.value
+      .copy(SKY_NIGHT_HORIZON)
+      .lerp(SKY_DAY_HORIZON, rawDay);
+    // A storm bleaches the sky toward the dust colour.
+    top.lerp(DUST_FOG, dustDark * 0.5);
+    horizon.lerp(DUST_FOG, dustDark * 0.45);
 
-    const fogCol = new Color(SKY_NIGHT_HORIZON).lerp(DUST_FOG, day);
-    this.fog.color.copy(fogCol);
+    // Fog thickens in a storm and warms to the dust colour by day.
+    this.fog.density = 0.00007 + dustDark * 0.00018;
+    this.fog.color.copy(SKY_NIGHT_HORIZON).lerp(DUST_FOG, rawDay).lerp(DUST_FOG, dustDark * 0.6);
 
     const starMat = this.stars.material as PointsMaterial;
-    starMat.opacity = clamp01(1 - day * 2);
+    starMat.opacity = clamp01(1 - day * 2) * (1 - dustDark); // dust also veils the stars
   }
 }
 

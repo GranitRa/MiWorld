@@ -11,6 +11,31 @@ import {
 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { Building, BuildingKind, Planet } from "@miworld/shared";
+import { CITY_GLOW } from "./palette";
+
+// Kinds with lit interiors that glow warmly after dark (window light).
+const LIT = new Set<BuildingKind>(["habitat", "dome", "greenhouse"]);
+
+/** Clone this instance's materials (proto clones share them) and prime them for emissive glow,
+ * returning the per-instance materials so night glow can be driven per building. */
+function setupGlow(obj: Object3D): MeshStandardMaterial[] {
+  const mats: MeshStandardMaterial[] = [];
+  obj.traverse((o) => {
+    const mesh = o as Mesh;
+    if (!mesh.isMesh) return;
+    const clone = (m: MeshStandardMaterial) => {
+      const c = m.clone();
+      c.emissive = CITY_GLOW.clone();
+      c.emissiveIntensity = 0;
+      mats.push(c);
+      return c;
+    };
+    mesh.material = Array.isArray(mesh.material)
+      ? mesh.material.map((m) => clone(m as MeshStandardMaterial))
+      : clone(mesh.material as MeshStandardMaterial);
+  });
+  return mats;
+}
 
 // CC0 Quaternius "Ultimate Space Kit" models mapped to colony building kinds. landing_pad
 // has no good model, so it falls back to a procedural disc.
@@ -47,6 +72,9 @@ const REF_HEIGHT_M = 7.5;
 interface Entry {
   record: Building;
   obj: Object3D;
+  /** Per-instance emissive materials for a lit kind (empty otherwise) — so night glow can be
+   * driven per building and a RUIN never lights up (Fable WP-13 F1). */
+  glow: MeshStandardMaterial[];
 }
 
 /**
@@ -118,6 +146,21 @@ export class BuildingLayer {
     return this.entries.get(id)?.record;
   }
 
+  /** Current building records (for read-only overlays). */
+  list(): Building[] {
+    return [...this.records.values()];
+  }
+
+  /** Drive the settlement's after-dark window glow (0 = day, ~1 = deep night). A ruin or an
+   * unfinished shell stays dark — only completed, standing lit buildings light up. */
+  setNightGlow(intensity: number): void {
+    for (const e of this.entries.values()) {
+      if (e.glow.length === 0) continue;
+      const on = e.record.tier !== "ruin" && e.record.progress >= 1 ? intensity : 0;
+      for (const m of e.glow) m.emissiveIntensity = on;
+    }
+  }
+
   /** Average position of standing buildings — the colony's centre, for the auto-director. */
   center(): { x: number; z: number } | null {
     let x = 0;
@@ -155,7 +198,7 @@ export class BuildingLayer {
       obj.rotation.y = b.rot;
       obj.userData = { miType: "building", miId: b.id };
       this.group.add(obj);
-      e = { record: { ...b }, obj };
+      e = { record: { ...b }, obj, glow: LIT.has(b.kind) ? setupGlow(obj) : [] };
       this.entries.set(b.id, e);
     }
     e.record = { ...b };

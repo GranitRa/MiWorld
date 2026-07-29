@@ -43,3 +43,7 @@ export const SKY_NIGHT_TOP = new Color("#05060d");
 export const SKY_NIGHT_HORIZON = new Color("#1a1424");
 export const SUN_COLOR = new Color("#ffdca6");
 export const DUST_FOG = new Color("#cf9059");
+// Mars sunsets are blue near the sun (fine dust scatters red forward) — the signature twilight.
+export const SKY_TWILIGHT = new Color("#4d6bb0");
+// Warm interior light the settlement gives off after dark.
+export const CITY_GLOW = new Color("#ffb15a");

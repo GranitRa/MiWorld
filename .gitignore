@@ -23,6 +23,9 @@ npm-debug.log*
 .cache/
 coverage/
 
+# === Capture output (screenshots + proof videos are regenerated, never reviewed) ===
+proof/
+
 # === Editor / OS ===
 .DS_Store
 Thumbs.db

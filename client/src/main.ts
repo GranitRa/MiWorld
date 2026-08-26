@@ -72,6 +72,23 @@ let pop = 0; // latest population (scales the night-city glow)
 let lastFrameMs = performance.now();
 const playback = new PlaybackBuffer();
 
+// --- Capture probe -------------------------------------------------------
+// A headless browser can only prove the world renders if it knows when to look. Expose a
+// small status object: `ready` flips once the world exists AND a frame has been drawn with
+// it, so a screenshot taken on that signal can never be the blank pre-worldgen frame.
+// `error` carries a worldgen failure so capture fails loudly instead of shooting black.
+// Diagnostics only — nothing in the app reads this back.
+interface CaptureProbe {
+  ready: boolean;
+  error: string | null;
+  frames: number;
+  worldTimeSec: number;
+  pop: number;
+}
+const probe: CaptureProbe = { ready: false, error: null, frames: 0, worldTimeSec: 0, pop: 0 };
+(globalThis as unknown as { __miworld: CaptureProbe }).__miworld = probe;
+let worldBuilt = false;
+
 function resize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -104,9 +121,11 @@ function buildWorld(seed: number, initialBuildings: Building[], initialColonists
       rig.setHeightSampler((x, z) => p.height(x, z));
       rig.focus(p.landingSite.x, p.landingSite.z, 60);
       hud.setStatus("● live");
+      worldBuilt = true;
     } catch (err) {
       console.error("buildWorld failed:", err);
       hud.setStatus("error: " + String(err));
+      probe.error = String(err);
     }
   }, 0);
 }
@@ -171,6 +190,11 @@ function frame() {
 
   post.render();
   hud.setClock(worldTimeSec);
+
+  probe.frames++;
+  probe.worldTimeSec = worldTimeSec;
+  probe.pop = pop;
+  if (worldBuilt) probe.ready = true;
   scheduleFrame();
 }
 // rAF pauses in background tabs; fall back to a low-rate timer when hidden so the world still

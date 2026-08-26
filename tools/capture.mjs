@@ -31,6 +31,7 @@ Options:
   --height <px>      viewport height            (default 720)
   --timeout <ms>     wait for a drawn world     (default 120000)
   --settle <ms>      extra wait after ready     (default 1500)
+  --tick-wait <ms>   wait for the first server tick (default 12000)
   --headed           show the browser window
   --require-gpu      fail instead of warn on a software renderer
   --require-light    fail instead of warn on a near-black (night) frame
@@ -59,6 +60,7 @@ const width = Number(flag("width", 1280));
 const height = Number(flag("height", 720));
 const timeout = Number(flag("timeout", 120_000));
 const settleMs = Number(flag("settle", 1500));
+const tickWaitMs = Number(flag("tick-wait", 12_000)); // one tick is ~8.6s of real time
 const seconds = Number(flag("seconds", 18));
 const fps = Number(flag("fps", 30));
 const out = resolve(flag("out", mode === "shot" ? "proof/shot.png" : "proof/proof.mp4"));
@@ -150,6 +152,14 @@ try {
 
 let probe = await page.evaluate(() => ({ ...globalThis.__miworld }));
 if (probe.error) await finish({ ok: false, error: `worldgen failed: ${probe.error}`, consoleErrors });
+
+// The world renders straight off the hello snapshot, but the HUD vitals only arrive with the
+// first tick — roughly every 8.6s of real time (TICK_WORLD_SECONDS / WORLD_SECONDS_PER_REAL_SECOND).
+// Wait for one rather than guessing a delay, but don't fail without it: a rendered world with
+// a half-drawn HUD is still a world. `ticks` in the verdict says whether one landed.
+await page
+  .waitForFunction(() => globalThis.__miworld?.ticks > 0, null, { timeout: tickWaitMs })
+  .catch(() => console.error(`warning: no server tick within ${tickWaitMs}ms — HUD vitals may be blank`));
 
 // The renderer string tells us whether this frame is worth trusting.
 const renderer = await page.evaluate(() => {

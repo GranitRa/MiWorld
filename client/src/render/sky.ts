@@ -31,7 +31,11 @@ const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 /** Sky dome + sun/moon light + dust fog + stars, driven by the fraction through a sol. */
 export class Sky {
   readonly sun = new DirectionalLight(0xffffff, 2.2);
+  /** True direction to the sun — drives the sky dome, and dips below the horizon at night. */
   readonly sunDirection = new Vector3(0, 1, 0);
+  /** Where the key light is actually placed: the sun while it is up, lifted back above the
+   * horizon once it sets. The night floor intensity must not shine up through the ground. */
+  readonly lightDirection = new Vector3(0, 1, 0);
   // Warm sky fill, cool ground bounce → painterly warm tops / cool shadows.
   private readonly hemi = new HemisphereLight(0xffe0b0, 0x3a2c47, 0.55);
   private readonly dome: Mesh;
@@ -119,6 +123,14 @@ export class Sky {
     const phase = solFraction * Math.PI * 2;
     const dir = new Vector3(Math.sin(phase), -Math.cos(phase), 0.28).normalize();
     this.sunDirection.copy(dir);
+    // Below the horizon the sun stops casting: a directional light under the terrain lights
+    // undersides and throws the shadow map across the whole colony as hard black wedges.
+    this.sun.castShadow = dir.y > 0;
+    this.lightDirection.copy(dir);
+    if (this.lightDirection.y < 0.05) {
+      this.lightDirection.y = Math.max(0.05, -this.lightDirection.y);
+      this.lightDirection.normalize();
+    }
     const rawDay = clamp01(dir.y * 1.25 + 0.12);
     // Storm darkening: high dust dims the sun and mutes the sky toward the dust colour.
     const dustDark = clamp01((dust - 0.3) / 0.6);

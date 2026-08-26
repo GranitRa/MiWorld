@@ -82,10 +82,12 @@ interface CaptureProbe {
   ready: boolean;
   error: string | null;
   frames: number;
+  /** Server ticks received. The HUD is only complete after the first one. */
+  ticks: number;
   worldTimeSec: number;
   pop: number;
 }
-const probe: CaptureProbe = { ready: false, error: null, frames: 0, worldTimeSec: 0, pop: 0 };
+const probe: CaptureProbe = { ready: false, error: null, frames: 0, ticks: 0, worldTimeSec: 0, pop: 0 };
 (globalThis as unknown as { __miworld: CaptureProbe }).__miworld = probe;
 let worldBuilt = false;
 
@@ -138,6 +140,7 @@ const conn = new Connection(defaultWsUrl(), {
     if (!planet) buildWorld(m.snapshot.seed, m.snapshot.buildings, m.snapshot.colonists);
   },
   onTick: (m) => {
+    probe.ticks++;
     playback.ingest(m);
     worldTimeSec = m.worldTimeSec; // snap to authoritative time (frame loop advances between ticks)
     dust = m.hud.dust;
@@ -184,7 +187,7 @@ function frame() {
   // The settlement glows warmly after dark, brighter as the colony grows.
   buildings?.setNightGlow(sky.nightFactor * Math.min(1, 0.35 + pop / 80));
   // Keep the shadow frustum over what the camera looks at.
-  sky.sun.position.copy(rig.target).addScaledVector(sky.sunDirection, 3000);
+  sky.sun.position.copy(rig.target).addScaledVector(sky.lightDirection, 3000);
   sky.sun.target.position.copy(rig.target);
   sky.sun.target.updateMatrixWorld();
 

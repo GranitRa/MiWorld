@@ -47,3 +47,7 @@ export const DUST_FOG = new Color("#cf9059");
 export const SKY_TWILIGHT = new Color("#4d6bb0");
 // Warm interior light the settlement gives off after dark.
 export const CITY_GLOW = new Color("#ffb15a");
+
+/** Work lighting on the industrial structures — cooler and far dimmer than window light, so
+ * a solar field or landing pad still reads at night without pretending it has windows. */
+export const WORK_LIGHT = new Color("#9fc4e8");

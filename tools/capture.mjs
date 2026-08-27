@@ -282,7 +282,8 @@ async function encode(dir, target, rate) {
     target,
   ];
   return new Promise((done) => {
-    const proc = spawn("ffmpeg", args, { stdio: ["ignore", "ignore", "pipe"] });
+    // FFMPEG_PATH covers a fresh install that is not on this shell's PATH yet.
+    const proc = spawn(process.env.FFMPEG_PATH ?? "ffmpeg", args, { stdio: ["ignore", "ignore", "pipe"] });
     let stderr = "";
     proc.stderr.on("data", (d) => (stderr += d));
     proc.on("error", (err) =>
@@ -290,7 +291,7 @@ async function encode(dir, target, rate) {
         ok: false,
         error:
           err.code === "ENOENT"
-            ? "ffmpeg not found on PATH — install it to encode the proof video"
+            ? "ffmpeg not found — install it, or point FFMPEG_PATH at the binary"
             : String(err),
       }),
     );
